@@ -69,8 +69,8 @@ export function AppShell() {
 
   return (
     <div className="flex h-svh max-h-svh flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 py-3 shadow-sm">
-        <div className="flex min-w-0 items-center gap-3">
+      <header className="flex min-w-0 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-background shadow-sm">
             <LayoutPanelLeft className="size-4 text-muted-foreground" />
           </div>
@@ -83,7 +83,7 @@ export function AppShell() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
@@ -116,25 +116,27 @@ export function AppShell() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="flex w-full shrink-0 flex-col border-b border-border bg-sidebar md:w-[260px] md:border-r md:border-b-0">
+        <aside className="flex w-full min-w-0 shrink-0 flex-col overflow-x-hidden border-b border-border bg-sidebar md:w-[260px] md:max-w-[260px] md:border-r md:border-b-0">
           <div className="space-y-1 border-b border-border p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Available blocks
             </p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
+            <p className="text-xs leading-relaxed break-words text-muted-foreground">
               Drag on canvas, connect top-to-bottom for order. Fork one block to
               run requests in parallel.
             </p>
           </div>
-          <div className="p-4">
+          <div className="min-w-0 p-4">
             <Button
               type="button"
               variant="outline"
-              className="h-auto w-full flex-col items-start gap-1 border-dashed py-3 shadow-none"
+              className="h-auto w-full max-w-full flex-col items-start gap-1 border-dashed py-3 text-left whitespace-normal shadow-none"
               onClick={addApiNode}
             >
-              <span className="text-sm font-medium">+ API block</span>
-              <span className="text-left text-[11px] font-normal text-muted-foreground">
+              <span className="w-full min-w-0 text-sm font-medium break-words">
+                + API block
+              </span>
+              <span className="w-full min-w-0 text-left text-[11px] font-normal break-words text-muted-foreground">
                 Paste cURL on the node to configure the request.
               </span>
             </Button>
@@ -154,31 +156,34 @@ export function AppShell() {
           >
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center justify-between gap-2 border-b border-border px-4 py-2.5 text-left hover:bg-muted/40"
+              className="flex min-w-0 w-full cursor-pointer items-center justify-between gap-2 border-b border-border px-4 py-2.5 text-left hover:bg-muted/40"
               onClick={() => setResultsOpen(!resultsOpen)}
             >
-              <span className="flex items-center gap-2 text-sm font-medium">
-                <ScrollText className="size-4 text-muted-foreground" />
-                Results
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium">
+                <ScrollText className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 truncate">Results</span>
                 {lastRunLogs.length ? (
-                  <Badge variant="secondary" className="font-mono text-[10px]">
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 font-mono text-[10px]"
+                  >
                     {lastRunLogs.length}
                   </Badge>
                 ) : null}
               </span>
               {resultsOpen ? (
-                <ChevronDown className="size-4 text-muted-foreground" />
+                <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
               ) : (
-                <ChevronUp className="size-4 text-muted-foreground" />
+                <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
               )}
             </button>
             {resultsOpen ? (
               <>
                 <Separator />
-                <ScrollArea className="h-full min-h-[200px] flex-1 px-2">
-                  <ul className="space-y-2 py-3 pr-2">
+                <ScrollArea className="h-full min-h-[200px] min-w-0 flex-1 px-2">
+                  <ul className="min-w-0 space-y-2 py-3 pr-2">
                     {lastRunLogs.length === 0 ? (
-                      <li className="px-2 text-sm text-muted-foreground">
+                      <li className="px-2 text-sm break-words text-muted-foreground">
                         Run a workflow to see per-node latency, status codes,
                         and timing here.
                       </li>
@@ -186,34 +191,38 @@ export function AppShell() {
                       lastRunLogs.map((log) => (
                         <li
                           key={log.id}
-                          className="rounded-md border border-border bg-background px-3 py-2 text-xs shadow-sm"
+                          className="min-w-0 overflow-hidden rounded-md border border-border bg-background px-3 py-2 text-xs shadow-sm"
                         >
-                          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                            <span>{new Date(log.at).toLocaleTimeString()}</span>
-                            <span className="rounded bg-muted px-1 py-px">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
+                            <span className="shrink-0">
+                              {new Date(log.at).toLocaleTimeString()}
+                            </span>
+                            <span className="shrink-0 rounded bg-muted px-1 py-px">
                               {log.nodeId.slice(0, 8)}
                             </span>
-                            <span className="font-semibold text-foreground">
+                            <span className="min-w-0 max-w-full font-semibold break-all text-foreground">
                               {log.method}
                             </span>
                             {log.statusCode != null ? (
-                              <span>{log.statusCode}</span>
+                              <span className="shrink-0">{log.statusCode}</span>
                             ) : null}
                             {log.durationMs != null ? (
-                              <span>{log.durationMs.toFixed(1)} ms</span>
+                              <span className="shrink-0">
+                                {log.durationMs.toFixed(1)} ms
+                              </span>
                             ) : null}
                           </div>
                           <p
-                            className="mt-1 break-all font-mono text-[11px] text-foreground"
+                            className="mt-1 break-all font-mono text-[11px] text-foreground [overflow-wrap:anywhere]"
                             title={log.url}
                           >
                             {log.url}
                           </p>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
+                          <p className="mt-1 text-[11px] break-words whitespace-pre-wrap text-muted-foreground">
                             {log.detail}
                           </p>
                           {log.error ? (
-                            <p className="mt-1 text-[11px] text-destructive">
+                            <p className="mt-1 text-[11px] break-words whitespace-pre-wrap text-destructive">
                               {log.error}
                             </p>
                           ) : null}

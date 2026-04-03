@@ -71,7 +71,7 @@ function FlowCanvasInner() {
 export function FlowCanvas() {
   return (
     <ReactFlowProvider>
-      <div className="h-full w-full min-h-0 rounded-lg border border-border bg-card shadow-sm">
+      <div className="h-full min-h-0 w-full min-w-0 rounded-lg border border-border bg-card shadow-sm">
         <FlowCanvasInner />
       </div>
     </ReactFlowProvider>

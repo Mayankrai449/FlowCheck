@@ -52,8 +52,8 @@ export function CurlImportDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="min-w-0 sm:max-w-lg">
+        <DialogHeader className="min-w-0">
           <DialogTitle>Import cURL</DialogTitle>
           <DialogDescription>
             Paste a cURL command to set method, URL, headers, and body on this
@@ -69,10 +69,13 @@ export function CurlImportDialog() {
           placeholder={`curl -X POST https://api.example.com/v1/items \\
   -H "Content-Type: application/json" \\
   -d '{"name":"demo"}'`}
-          className="min-h-[140px] font-mono text-xs"
+          className="min-h-[140px] min-w-0 max-w-full font-mono text-xs"
         />
         {error ? (
-          <p className="text-sm text-destructive" role="alert">
+          <p
+            className="text-sm break-words text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

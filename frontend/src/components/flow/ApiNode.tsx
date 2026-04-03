@@ -55,7 +55,7 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
   return (
     <div
       className={cn(
-        "w-[280px] rounded-lg border border-border bg-card shadow-sm transition-shadow",
+        "w-[280px] max-w-[min(280px,100%)] min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-shadow",
         selected && "ring-2 ring-ring/40 shadow-md",
       )}
       onDoubleClick={(e) => {
@@ -68,20 +68,25 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
         position={Position.Top}
         className="!size-2.5 !border-border !bg-background"
       />
-      <div className="flex flex-col gap-2 p-3">
-        <div className="flex items-start justify-between gap-2">
+      <div className="flex min-w-0 flex-col gap-2 p-3">
+        <div className="flex min-w-0 items-start justify-between gap-2">
           <Badge
             variant="outline"
-            className={cn("shrink-0 font-mono text-[10px]", methodBadgeClass(data.method))}
+            className={cn(
+              "min-w-0 max-w-[45%] shrink truncate font-mono text-[10px]",
+              methodBadgeClass(data.method),
+            )}
+            title={data.method.toUpperCase()}
           >
             {data.method.toUpperCase()}
           </Badge>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex min-w-0 shrink items-center justify-end gap-1">
             <span
               className={cn(
-                "inline-flex max-w-[100px] items-center rounded-md border px-2 py-0.5 text-[10px] font-medium",
+                "inline-flex min-w-0 max-w-[7.5rem] items-center truncate rounded-md border px-2 py-0.5 text-[10px] font-medium",
                 pill.className,
               )}
+              title={pill.label}
             >
               {pill.label}
             </span>
@@ -101,13 +106,13 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
           </div>
         </div>
         <p
-          className="break-all text-left font-mono text-xs leading-snug text-foreground"
+          className="min-w-0 break-all text-left font-mono text-xs leading-snug text-foreground [overflow-wrap:anywhere]"
           title={data.url}
         >
           {shortUrl}
         </p>
         {(data.lastLatencyMs != null || data.runStatus === "running") && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="min-w-0 break-words text-[11px] text-muted-foreground">
             {data.runStatus === "running"
               ? "Executing…"
               : `Latency · ${data.lastLatencyMs?.toFixed(1)} ms`}
@@ -117,7 +122,7 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
           type="button"
           variant="outline"
           size="xs"
-          className="h-7 w-full gap-1 text-xs"
+          className="h-auto min-h-7 w-full flex-wrap gap-1 whitespace-normal text-xs"
           onClick={(e) => {
             e.stopPropagation()
             setCurlTarget(id)
