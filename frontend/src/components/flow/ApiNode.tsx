@@ -8,11 +8,14 @@ import type { ApiNodeData, AppNode } from "@/types/flow"
 
 function methodBadgeClass(method: string): string {
   const m = method.toUpperCase()
-  if (m === "GET") return "bg-sky-100 text-sky-800 border-sky-200"
-  if (m === "POST") return "bg-emerald-100 text-emerald-800 border-emerald-200"
+  if (m === "GET")
+    return "border-sky-400/35 bg-sky-500/15 text-sky-900 dark:border-sky-400/45 dark:bg-sky-400/20 dark:text-sky-100"
+  if (m === "POST")
+    return "border-emerald-400/35 bg-emerald-500/15 text-emerald-900 dark:border-emerald-400/45 dark:bg-emerald-400/20 dark:text-emerald-100"
   if (m === "PUT" || m === "PATCH")
-    return "bg-amber-100 text-amber-900 border-amber-200"
-  if (m === "DELETE") return "bg-rose-100 text-rose-800 border-rose-200"
+    return "border-amber-400/40 bg-amber-500/15 text-amber-950 dark:border-amber-400/45 dark:bg-amber-400/18 dark:text-amber-100"
+  if (m === "DELETE")
+    return "border-rose-400/35 bg-rose-500/15 text-rose-900 dark:border-rose-400/45 dark:bg-rose-400/20 dark:text-rose-100"
   return "bg-muted text-muted-foreground border-border"
 }
 
@@ -22,7 +25,7 @@ function statusPill(data: ApiNodeData): { label: string; className: string } {
       return {
         label: "Running",
         className:
-          "bg-blue-50 text-blue-700 border-blue-200 animate-pulse",
+          "border-blue-400/40 bg-blue-500/15 text-blue-900 animate-pulse dark:border-blue-400/50 dark:bg-blue-500/25 dark:text-blue-100",
       }
     case "success":
       return {
@@ -30,17 +33,20 @@ function statusPill(data: ApiNodeData): { label: string; className: string } {
           data.lastStatusCode != null
             ? `Success · ${data.lastStatusCode}`
             : "Success",
-        className: "bg-emerald-50 text-emerald-800 border-emerald-200",
+        className:
+          "border-emerald-400/40 bg-emerald-500/15 text-emerald-900 dark:border-emerald-400/50 dark:bg-emerald-400/22 dark:text-emerald-100",
       }
     case "fail":
       return {
         label: data.lastStatusCode != null ? `Fail · ${data.lastStatusCode}` : "Fail",
-        className: "bg-red-50 text-red-800 border-red-200",
+        className:
+          "border-red-400/40 bg-red-500/15 text-red-900 dark:border-red-400/50 dark:bg-red-500/25 dark:text-red-100",
       }
     default:
       return {
         label: "Idle",
-        className: "bg-muted/80 text-muted-foreground border-border",
+        className:
+          "border-border bg-muted text-muted-foreground dark:bg-muted/60 dark:text-foreground/85",
       }
   }
 }

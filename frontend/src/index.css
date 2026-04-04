@@ -131,3 +131,16 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* React Flow: html.dark + .react-flow.dark (see FlowCanvas) — crisper edges & minimap on app tokens */
+.dark .react-flow.dark {
+  --xy-edge-stroke-default: color-mix(in oklab, var(--foreground) 42%, transparent);
+  --xy-edge-stroke-selected-default: color-mix(in oklab, var(--foreground) 68%, transparent);
+  --xy-connectionline-stroke-default: color-mix(in oklab, var(--foreground) 50%, transparent);
+  --xy-background-color-default: transparent;
+  --xy-controls-button-background-color-default: var(--card);
+  --xy-controls-button-background-color-hover-default: var(--muted);
+  --xy-controls-button-color-default: var(--foreground);
+  --xy-controls-button-color-hover-default: var(--foreground);
+  --xy-controls-button-border-color-default: var(--border);
+}
