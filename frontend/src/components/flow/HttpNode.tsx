@@ -1,10 +1,12 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react"
 import { Code2, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { runStatusPill } from "@/components/flow/runStatusUi"
+import { flowHandleClass, flowNodeSurfaceClass } from "@/lib/flowNodeSurface"
 import { cn } from "@/lib/utils"
 import { useWorkflowStore } from "@/store/workflowStore"
-import type { ApiNodeData, AppNode } from "@/types/flow"
+import type { HttpNodeData } from "@/types/flow"
 
 function methodBadgeClass(method: string): string {
   const m = method.toUpperCase()
@@ -19,51 +21,19 @@ function methodBadgeClass(method: string): string {
   return "bg-muted text-muted-foreground border-border"
 }
 
-function statusPill(data: ApiNodeData): { label: string; className: string } {
-  switch (data.runStatus) {
-    case "running":
-      return {
-        label: "Running",
-        className:
-          "border-blue-400/40 bg-blue-500/15 text-blue-900 animate-pulse dark:border-blue-400/50 dark:bg-blue-500/25 dark:text-blue-100",
-      }
-    case "success":
-      return {
-        label:
-          data.lastStatusCode != null
-            ? `Success · ${data.lastStatusCode}`
-            : "Success",
-        className:
-          "border-emerald-400/40 bg-emerald-500/15 text-emerald-900 dark:border-emerald-400/50 dark:bg-emerald-400/22 dark:text-emerald-100",
-      }
-    case "fail":
-      return {
-        label: data.lastStatusCode != null ? `Fail · ${data.lastStatusCode}` : "Fail",
-        className:
-          "border-red-400/40 bg-red-500/15 text-red-900 dark:border-red-400/50 dark:bg-red-500/25 dark:text-red-100",
-      }
-    default:
-      return {
-        label: "Idle",
-        className:
-          "border-border bg-muted text-muted-foreground dark:bg-muted/60 dark:text-foreground/85",
-      }
-  }
-}
-
-export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
+export function HttpNode({ id, data, selected }: NodeProps<Node<HttpNodeData, "http">>) {
   const setCurlTarget = useWorkflowStore((s) => s.setCurlTarget)
   const removeNode = useWorkflowStore((s) => s.removeNode)
-  const pill = statusPill(data)
+  const pill = runStatusPill(data)
   const shortUrl =
     data.url.length > 46 ? `${data.url.slice(0, 44)}…` : data.url
 
   return (
     <div
-      className={cn(
-        "w-[280px] max-w-[min(280px,100%)] min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-shadow",
-        selected && "ring-2 ring-ring/40 shadow-md",
-      )}
+      className={flowNodeSurfaceClass({
+        selected,
+        runStatus: data.runStatus,
+      })}
       onDoubleClick={(e) => {
         e.stopPropagation()
         setCurlTarget(id)
@@ -72,7 +42,7 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!size-2.5 !border-border !bg-background"
+        className={flowHandleClass}
       />
       <div className="flex min-w-0 flex-col gap-2 p-3">
         <div className="flex min-w-0 items-start justify-between gap-2">
@@ -111,6 +81,9 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
             </Button>
           </div>
         </div>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          HTTP
+        </p>
         <p
           className="min-w-0 break-all text-left font-mono text-xs leading-snug text-foreground [overflow-wrap:anywhere]"
           title={data.url}
@@ -124,6 +97,15 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
               : `Latency · ${data.lastLatencyMs?.toFixed(1)} ms`}
           </p>
         )}
+        {data.lastAttempts != null &&
+        data.lastAttempts > 1 &&
+        data.runStatus !== "running" &&
+        data.runStatus !== "idle" ? (
+          <p className="text-[10px] text-muted-foreground">
+            {data.lastAttempts} attempts ·{" "}
+            {data.lastOutcome?.replace(/_/g, " ") ?? "done"}
+          </p>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -141,7 +123,7 @@ export function ApiNode({ id, data, selected }: NodeProps<AppNode>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-2.5 !border-border !bg-background"
+        className={flowHandleClass}
       />
     </div>
   )

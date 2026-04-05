@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,23 +10,20 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { parseCurl } from "@/lib/parseCurl"
-import { useWorkflowStore } from "@/store/workflowStore"
+import {
+  selectActiveWorkflow,
+  useWorkflowStore,
+} from "@/store/workflowStore"
 
 export function CurlImportDialog() {
   const curlTargetNodeId = useWorkflowStore((s) => s.curlTargetNodeId)
+  const activeWf = useWorkflowStore(selectActiveWorkflow)
   const setCurlTarget = useWorkflowStore((s) => s.setCurlTarget)
   const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
   const [raw, setRaw] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const open = curlTargetNodeId != null
-
-  useEffect(() => {
-    if (open) {
-      setRaw("")
-      setError(null)
-    }
-  }, [open, curlTargetNodeId])
 
   const close = () => {
     setCurlTarget(null)
@@ -35,6 +32,11 @@ export function CurlImportDialog() {
 
   const apply = () => {
     if (!curlTargetNodeId) return
+    const target = activeWf?.nodes.find((n) => n.id === curlTargetNodeId)
+    if (target?.type !== "http") {
+      setError("cURL import applies to HTTP blocks only.")
+      return
+    }
     try {
       const p = parseCurl(raw)
       updateNodeData(curlTargetNodeId, {
@@ -51,7 +53,11 @@ export function CurlImportDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && close()}>
+    <Dialog
+      key={curlTargetNodeId ?? "closed"}
+      open={open}
+      onOpenChange={(next) => !next && close()}
+    >
       <DialogContent className="min-w-0 sm:max-w-lg">
         <DialogHeader className="min-w-0">
           <DialogTitle>Import cURL</DialogTitle>

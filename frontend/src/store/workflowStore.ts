@@ -9,17 +9,25 @@ import {
 } from "@xyflow/react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { ApiNodeData, AppNode, RunLogEntry } from "@/types/flow"
-import type { SavedWorkflow, StressSummary } from "@/types/workflow"
-
-const defaultApiData = (): ApiNodeData => ({
-  label: "API Request",
-  method: "GET",
-  url: "https://httpbin.org/get",
-  headers: {},
-  body: null,
-  runStatus: "idle",
-})
+import { buildExecutionPlan } from "@/lib/executionPlan"
+import type {
+  AnyFlowNodeData,
+  AppNode,
+  ExecutionOutcome,
+  FlowNodeKind,
+  RunLogEntry,
+} from "@/types/flow"
+import {
+  defaultDataForKind,
+  migrateSavedWorkflowNodes,
+} from "@/types/flow"
+import {
+  FLOW_FILE_EXPORT_VERSION,
+  type FlowExportFileV1,
+  type FlowViewportState,
+  type SavedWorkflow,
+  type StressSummary,
+} from "@/types/workflow"
 
 function newSavedWorkflow(name: string): SavedWorkflow {
   const id = crypto.randomUUID()
@@ -58,6 +66,57 @@ const nextPosition = (nodes: AppNode[]): { x: number; y: number } => {
   return { x: 80 + (n % 4) * 60, y: 80 + Math.floor(n / 4) * 140 }
 }
 
+function parseFlowFile(data: unknown): {
+  name?: string
+  nodes: unknown[]
+  edges: unknown[]
+  viewport?: FlowViewportState
+} | null {
+  if (!data || typeof data !== "object") return null
+  const o = data as Record<string, unknown>
+  if (!Array.isArray(o.nodes) || !Array.isArray(o.edges)) return null
+  const name =
+    typeof o.name === "string" && o.name.trim() ? o.name.trim() : undefined
+  let viewport: FlowViewportState | undefined
+  if (o.viewport != null && typeof o.viewport === "object") {
+    const v = o.viewport as Record<string, unknown>
+    const x = Number(v.x)
+    const y = Number(v.y)
+    const zoom = Number(v.zoom)
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(zoom)) {
+      viewport = { x, y, zoom }
+    }
+  }
+  return { name, nodes: o.nodes, edges: o.edges, viewport }
+}
+
+function normalizeLoadedEdges(raw: unknown): Edge[] {
+  if (!Array.isArray(raw)) return []
+  const out: Edge[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue
+    const e = item as Record<string, unknown>
+    if (typeof e.source !== "string" || typeof e.target !== "string") continue
+    out.push({
+      id: typeof e.id === "string" ? e.id : crypto.randomUUID(),
+      source: e.source,
+      target: e.target,
+      ...(typeof e.type === "string" ? { type: e.type } : {}),
+      ...(e.animated === true ? { animated: true } : {}),
+      ...(e.label !== undefined ? { label: e.label as Edge["label"] } : {}),
+    })
+  }
+  return out
+}
+
+function cloneForExport<T>(value: T): T {
+  try {
+    return structuredClone(value)
+  } catch {
+    return JSON.parse(JSON.stringify(value)) as T
+  }
+}
+
 type PersistedV1 = {
   nodes?: AppNode[]
   edges?: Edge[]
@@ -71,13 +130,18 @@ type WorkflowRootState = {
   resultsOpen: boolean
   curlTargetNodeId: string | null
   runInFlight: boolean
+  selectedNodeId: string | null
+  /** Bumps when the active workflow graph is loaded/replaced so the canvas can apply viewport. */
+  flowLoadNonce: number
 }
 
 type WorkflowActions = {
   setResultsOpen: (open: boolean) => void
   setCurlTarget: (id: string | null) => void
-  addApiNode: () => void
-  updateNodeData: (id: string, data: Partial<ApiNodeData>) => void
+  setSelectedNodeId: (id: string | null) => void
+  addNode: (kind: FlowNodeKind) => void
+  addNodeAt: (kind: FlowNodeKind, position: { x: number; y: number }) => void
+  updateNodeData: (id: string, data: Partial<AnyFlowNodeData>) => void
   onNodesChange: (changes: NodeChange<AppNode>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
   onConnect: (conn: Connection) => void
@@ -90,6 +154,10 @@ type WorkflowActions = {
       durationMs: number
       responsePreview?: string | null
       error?: string | null
+      errorDetail?: string | null
+      attempts?: number
+      outcome?: ExecutionOutcome
+      attemptErrors?: string[]
     }>,
   ) => void
   resetGraphRunUi: () => void
@@ -101,6 +169,11 @@ type WorkflowActions = {
   duplicateWorkflow: (id: string) => void
   deleteWorkflow: (id: string) => boolean
   appendStressSummary: (summary: StressSummary) => void
+  saveFlow: () => FlowExportFileV1 | null
+  loadFlow: (jsonData: unknown) => { ok: true } | { ok: false; message: string }
+  clearActiveWorkflowGraph: () => void
+  setWorkflowViewport: (vp: FlowViewportState) => void
+  applyAutoLayout: () => { ok: true } | { ok: false; message: string }
 }
 
 function initialRoot(): WorkflowRootState {
@@ -111,6 +184,15 @@ function initialRoot(): WorkflowRootState {
     resultsOpen: true,
     curlTargetNodeId: null,
     runInFlight: false,
+    selectedNodeId: null,
+    flowLoadNonce: 0,
+  }
+}
+
+function migrateWorkflowRecord(wf: SavedWorkflow): SavedWorkflow {
+  return {
+    ...wf,
+    nodes: migrateSavedWorkflowNodes(wf.nodes as unknown[]),
   }
 }
 
@@ -123,6 +205,7 @@ export const useWorkflowStore = create<
 
       setResultsOpen: (open) => set({ resultsOpen: open }),
       setCurlTarget: (id) => set({ curlTargetNodeId: id }),
+      setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
       createWorkflow: (name) => {
         const s = get()
@@ -134,13 +217,18 @@ export const useWorkflowStore = create<
           workflows: { ...s.workflows, [wf.id]: wf },
           activeWorkflowId: wf.id,
           curlTargetNodeId: null,
+          selectedNodeId: null,
         })
       },
 
       setActiveWorkflow: (id) => {
         const s = get()
         if (!s.workflows[id]) return
-        set({ activeWorkflowId: id, curlTargetNodeId: null })
+        set({
+          activeWorkflowId: id,
+          curlTargetNodeId: null,
+          selectedNodeId: null,
+        })
       },
 
       renameWorkflow: (id, name) => {
@@ -166,11 +254,13 @@ export const useWorkflowStore = create<
           ...copy,
           nodes,
           edges,
+          viewport: src.viewport,
         }
         set({
           workflows: { ...s.workflows, [wf.id]: wf },
           activeWorkflowId: wf.id,
           curlTargetNodeId: null,
+          selectedNodeId: null,
         })
       },
 
@@ -191,6 +281,7 @@ export const useWorkflowStore = create<
           workflows: rest,
           activeWorkflowId: nextActive,
           curlTargetNodeId: null,
+          selectedNodeId: null,
         })
         return true
       },
@@ -212,7 +303,157 @@ export const useWorkflowStore = create<
         })
       },
 
-      addApiNode: () => {
+      saveFlow: () => {
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) return null
+        const nodes = wf.nodes.map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: { x: n.position.x, y: n.position.y },
+          data: cloneForExport(n.data),
+        }))
+        const edges = wf.edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: e.type,
+          animated: e.animated,
+          label: e.label,
+        }))
+        const payload: FlowExportFileV1 = {
+          flowcheckExportVersion: FLOW_FILE_EXPORT_VERSION,
+          name: wf.name,
+          exportedAt: new Date().toISOString(),
+          nodes,
+          edges,
+          viewport: wf.viewport ?? null,
+        }
+        return payload
+      },
+
+      loadFlow: (jsonData) => {
+        const parsed = parseFlowFile(jsonData)
+        if (!parsed) {
+          return {
+            ok: false,
+            message:
+              "Invalid flow file: expected JSON with nodes and edges arrays.",
+          }
+        }
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) {
+          return { ok: false, message: "No active workflow." }
+        }
+        const nodes = migrateSavedWorkflowNodes(parsed.nodes)
+        const edges = normalizeLoadedEdges(parsed.edges)
+        const nextName = parsed.name ?? wf.name
+        set({
+          selectedNodeId: null,
+          curlTargetNodeId: null,
+          workflows: {
+            ...s.workflows,
+            [wf.id]: {
+              ...wf,
+              name: nextName,
+              nodes,
+              edges,
+              viewport: parsed.viewport,
+              lastRunLogs: [],
+              stressHistory: [],
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          flowLoadNonce: s.flowLoadNonce + 1,
+        })
+        return { ok: true }
+      },
+
+      clearActiveWorkflowGraph: () => {
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) return
+        set({
+          selectedNodeId: null,
+          curlTargetNodeId: null,
+          workflows: {
+            ...s.workflows,
+            [wf.id]: {
+              ...wf,
+              nodes: [],
+              edges: [],
+              viewport: undefined,
+              lastRunLogs: [],
+              stressHistory: [],
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          flowLoadNonce: s.flowLoadNonce + 1,
+        })
+      },
+
+      setWorkflowViewport: (vp) => {
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) return
+        set({
+          workflows: {
+            ...s.workflows,
+            [wf.id]: {
+              ...wf,
+              viewport: vp,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })
+      },
+
+      applyAutoLayout: () => {
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) {
+          return { ok: false, message: "No active workflow." }
+        }
+        const plan = buildExecutionPlan(wf.nodes, wf.edges)
+        if (!plan.ok) {
+          return { ok: false, message: plan.message }
+        }
+        const colW = 300
+        const rowH = 200
+        const idToPos = new Map<string, { x: number; y: number }>()
+        for (let row = 0; row < plan.batches.length; row++) {
+          const batch = plan.batches[row]!
+          const n = batch.length
+          const rowW = n > 1 ? (n - 1) * colW : 0
+          const baseX = 320 - rowW / 2
+          for (let col = 0; col < n; col++) {
+            idToPos.set(batch[col]!, {
+              x: baseX + col * colW,
+              y: 80 + row * rowH,
+            })
+          }
+        }
+        const nextNodes = wf.nodes.map((n) => {
+          const p = idToPos.get(n.id)
+          return p ? { ...n, position: p } : n
+        })
+        set({
+          workflows: {
+            ...s.workflows,
+            [wf.id]: {
+              ...wf,
+              nodes: nextNodes,
+              viewport: undefined,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          flowLoadNonce: s.flowLoadNonce + 1,
+        })
+        return { ok: true }
+      },
+
+      addNode: (kind) => {
         const s = get()
         const wf = s.workflows[s.activeWorkflowId]
         if (!wf) return
@@ -220,10 +461,10 @@ export const useWorkflowStore = create<
         const pos = nextPosition(wf.nodes)
         const node: AppNode = {
           id,
-          type: "api",
+          type: kind,
           position: pos,
-          data: defaultApiData(),
-        }
+          data: defaultDataForKind(kind),
+        } as AppNode
         set({
           workflows: {
             ...s.workflows,
@@ -233,6 +474,30 @@ export const useWorkflowStore = create<
               updatedAt: new Date().toISOString(),
             },
           },
+        })
+      },
+
+      addNodeAt: (kind, position) => {
+        const s = get()
+        const wf = s.workflows[s.activeWorkflowId]
+        if (!wf) return
+        const id = crypto.randomUUID()
+        const node: AppNode = {
+          id,
+          type: kind,
+          position,
+          data: defaultDataForKind(kind),
+        } as AppNode
+        set({
+          workflows: {
+            ...s.workflows,
+            [wf.id]: {
+              ...wf,
+              nodes: [...wf.nodes, node],
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          selectedNodeId: id,
         })
       },
 
@@ -247,7 +512,7 @@ export const useWorkflowStore = create<
               ...wf,
               nodes: wf.nodes.map((n) =>
                 n.id === id
-                  ? { ...n, data: { ...n.data, ...data } }
+                  ? ({ ...n, data: { ...n.data, ...data } } as AppNode)
                   : n,
               ),
               updatedAt: new Date().toISOString(),
@@ -260,7 +525,13 @@ export const useWorkflowStore = create<
         const s = get()
         const wf = s.workflows[s.activeWorkflowId]
         if (!wf) return
+        const removed = changes
+          .filter((c) => c.type === "remove")
+          .map((c) => c.id)
+        const nextSelected =
+          removed.includes(s.selectedNodeId ?? "") ? null : s.selectedNodeId
         set({
+          selectedNodeId: nextSelected,
           workflows: {
             ...s.workflows,
             [wf.id]: {
@@ -331,17 +602,22 @@ export const useWorkflowStore = create<
             ...s.workflows,
             [wf.id]: {
               ...wf,
-              nodes: wf.nodes.map((n) => ({
-                ...n,
-                data: {
-                  ...n.data,
-                  runStatus: "running" as const,
-                  lastStatusCode: undefined,
-                  lastLatencyMs: undefined,
-                  lastResponsePreview: undefined,
-                  lastError: undefined,
-                },
-              })),
+              nodes: wf.nodes.map(
+                (n) =>
+                  ({
+                    ...n,
+                    data: {
+                      ...n.data,
+                      runStatus: "running" as const,
+                      lastStatusCode: undefined,
+                      lastLatencyMs: undefined,
+                      lastResponsePreview: undefined,
+                      lastError: undefined,
+                      lastAttempts: undefined,
+                      lastOutcome: undefined,
+                    },
+                  }) as AppNode,
+              ),
               updatedAt: new Date().toISOString(),
             },
           },
@@ -357,13 +633,18 @@ export const useWorkflowStore = create<
             ...s.workflows,
             [wf.id]: {
               ...wf,
-              nodes: wf.nodes.map((n) => ({
-                ...n,
-                data: {
-                  ...n.data,
-                  runStatus: "idle" as const,
-                },
-              })),
+              nodes: wf.nodes.map(
+                (n) =>
+                  ({
+                    ...n,
+                    data: {
+                      ...n.data,
+                      runStatus: "idle" as const,
+                      lastAttempts: undefined,
+                      lastOutcome: undefined,
+                    },
+                  }) as AppNode,
+              ),
               updatedAt: new Date().toISOString(),
             },
           },
@@ -375,6 +656,7 @@ export const useWorkflowStore = create<
         const wf = s.workflows[s.activeWorkflowId]
         if (!wf) return
         set({
+          selectedNodeId: s.selectedNodeId === id ? null : s.selectedNodeId,
           workflows: {
             ...s.workflows,
             [wf.id]: {
@@ -394,7 +676,7 @@ export const useWorkflowStore = create<
         const byId = new Map(results.map((r) => [r.nodeId, r]))
         const newLogs: RunLogEntry[] = []
 
-        const nextNodes = wf.nodes.map((n) => {
+        const nextNodes = wf.nodes.map((n): AppNode => {
           const r = byId.get(n.id)
           if (!r) {
             return {
@@ -402,25 +684,84 @@ export const useWorkflowStore = create<
               data: {
                 ...n.data,
                 runStatus: "idle" as const,
+                lastAttempts: undefined,
+                lastOutcome: undefined,
               },
-            }
+            } as AppNode
           }
           const fail =
-            Boolean(r.error) ||
-            (r.statusCode !== null && r.statusCode >= 400)
-          const status: ApiNodeData["runStatus"] = fail ? "fail" : "success"
+            r.outcome === "failed" || r.outcome === "failed_after_retries"
+              ? true
+              : r.outcome === "success"
+                ? false
+                : Boolean(r.error) ||
+                  (r.statusCode !== null && r.statusCode >= 400)
+          const status: AnyFlowNodeData["runStatus"] = fail ? "fail" : "success"
+
+          let method = "NODE"
+          let url = ""
+          if (n.type === "http") {
+            method = n.data.method
+            url = n.data.url
+          } else if (n.type === "condition") {
+            method = "Condition"
+            url =
+              n.data.expression.length > 120
+                ? `${n.data.expression.slice(0, 118)}…`
+                : n.data.expression
+          } else if (n.type === "code") {
+            method = "Code"
+            const line = n.data.code.split("\n").find((l) => l.trim()) ?? ""
+            url =
+              line.length > 120 ? `${line.slice(0, 118)}…` : line || "(empty)"
+          } else if (n.type === "trigger") {
+            method = "Trigger"
+            url = n.data.note?.trim() ? n.data.note : n.data.label
+          }
+
+          const outcomeLabel =
+            r.outcome === "success"
+              ? (r.attempts ?? 1) > 1
+                ? `Success (${r.attempts} attempts)`
+                : "Success"
+              : r.outcome === "failed_after_retries"
+                ? `Failed after retries (${r.attempts ?? "?"})`
+                : r.outcome === "failed"
+                  ? "Failed"
+                  : null
+
+          let detail =
+            outcomeLabel != null
+              ? `${outcomeLabel} · ${
+                  r.error
+                    ? r.error
+                    : `${r.statusCode ?? "?"} in ${r.durationMs.toFixed(1)}ms`
+                }`
+              : r.error
+                ? `Error: ${r.error}`
+                : `${r.statusCode ?? "?"} in ${r.durationMs.toFixed(1)}ms`
+
+          if (r.attemptErrors && r.attemptErrors.length > 1) {
+            const joined = r.attemptErrors.join(" | ")
+            detail +=
+              joined.length > 320
+                ? ` · Attempts: ${joined.slice(0, 320)}…`
+                : ` · Attempts: ${joined}`
+          }
+
           const line: RunLogEntry = {
             id: crypto.randomUUID(),
             at: new Date().toISOString(),
             nodeId: n.id,
-            method: n.data.method,
-            url: n.data.url,
+            method,
+            url,
             statusCode: r.statusCode ?? undefined,
             durationMs: r.durationMs,
             error: r.error ?? undefined,
-            detail: r.error
-              ? `Error: ${r.error}`
-              : `${r.statusCode ?? "?"} in ${r.durationMs.toFixed(1)}ms`,
+            detail,
+            attempts: r.attempts,
+            outcome: r.outcome,
+            errorDetail: r.errorDetail ?? undefined,
           }
           newLogs.push(line)
           return {
@@ -432,8 +773,10 @@ export const useWorkflowStore = create<
               lastLatencyMs: r.durationMs,
               lastResponsePreview: r.responsePreview ?? undefined,
               lastError: r.error ?? undefined,
+              lastAttempts: r.attempts,
+              lastOutcome: r.outcome,
             },
-          }
+          } as AppNode
         })
 
         set({
@@ -457,26 +800,34 @@ export const useWorkflowStore = create<
         resultsOpen: s.resultsOpen,
       }),
       merge: (persisted, current) => {
-        const p = persisted as PersistedV1 & Partial<WorkflowRootState>
+        const p = persisted as PersistedV1 & Partial<WorkflowRootState> & {
+          workflows?: Record<string, SavedWorkflow>
+        }
         if (
           p.workflows &&
           p.activeWorkflowId &&
           p.workflows[p.activeWorkflowId]
         ) {
+          const migrated: Record<string, SavedWorkflow> = {}
+          for (const [k, w] of Object.entries(p.workflows)) {
+            migrated[k] = migrateWorkflowRecord(w)
+          }
           return {
             ...current,
-            workflows: p.workflows,
+            workflows: migrated,
             activeWorkflowId: p.activeWorkflowId,
             resultsOpen: p.resultsOpen ?? true,
             curlTargetNodeId: null,
             runInFlight: false,
+            selectedNodeId: null,
+            flowLoadNonce: 0,
           }
         }
         if (Array.isArray(p.nodes)) {
           const wf = newSavedWorkflow("Default")
           const migrated: SavedWorkflow = {
             ...wf,
-            nodes: p.nodes,
+            nodes: migrateSavedWorkflowNodes(p.nodes as unknown[]),
             edges: Array.isArray(p.edges) ? p.edges : [],
             lastRunLogs: Array.isArray(p.lastRunLogs) ? p.lastRunLogs : [],
             stressHistory: [],
@@ -488,6 +839,8 @@ export const useWorkflowStore = create<
             resultsOpen: p.resultsOpen ?? true,
             curlTargetNodeId: null,
             runInFlight: false,
+            selectedNodeId: null,
+            flowLoadNonce: 0,
           }
         }
         return current

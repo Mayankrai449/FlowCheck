@@ -5,6 +5,13 @@ function safeId(nodeId: string): string {
 }
 
 function oneStep(node: AppNode): string {
+  if (node.type !== "http") {
+    return `
+async function step_${safeId(node.id)}() {
+  console.log("[${node.id.slice(0, 8)}]", "(skipped in export — not an HTTP node)");
+}
+`.trimEnd()
+  }
   const sid = safeId(node.id)
   const m = node.data.method.toUpperCase()
   const url = JSON.stringify(node.data.url)

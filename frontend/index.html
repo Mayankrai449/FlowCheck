@@ -19,8 +19,7 @@
           var dark
           if (v === "dark") dark = true
           else if (v === "light") dark = false
-          else
-            dark = window.matchMedia("(prefers-color-scheme: dark)").matches
+          else dark = true
           document.documentElement.classList.toggle("dark", dark)
         } catch (e) {
           /* ignore */

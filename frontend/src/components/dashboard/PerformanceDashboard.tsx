@@ -17,14 +17,21 @@ import {
   selectActiveWorkflow,
   useWorkflowStore,
 } from "@/store/workflowStore"
+import type { AppNode } from "@/types/flow"
 
 function nodeShortLabel(
-  nodes: { id: string; data: { label: string; method: string } }[],
+  nodes: AppNode[],
   nodeId: string,
 ): string {
   const n = nodes.find((x) => x.id === nodeId)
-  const bit = n?.data.label?.trim() || n?.data.method || nodeId
-  return bit.length > 16 ? `${bit.slice(0, 16)}…` : bit
+  if (!n) return nodeId.slice(0, 8)
+  const label = n.data.label?.trim()
+  if (label) return label.length > 16 ? `${label.slice(0, 16)}…` : label
+  if (n.type === "http") {
+    const m = n.data.method
+    return m.length > 16 ? `${m.slice(0, 16)}…` : m
+  }
+  return n.type
 }
 
 function chartPalette(dark: boolean) {

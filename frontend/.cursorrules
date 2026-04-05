@@ -1,0 +1,6 @@
+Always work incrementally.
+Never break existing HTTP node behavior.
+Preserve current code style and patterns.
+After changes, ensure npx tsc --noEmit passes.
+Only edit necessary files unless explicitly asked.
+Prefer small, safe changes over large refactors.
