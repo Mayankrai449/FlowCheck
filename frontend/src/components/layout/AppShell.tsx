@@ -1,22 +1,44 @@
 import {
   BarChart3,
+  Braces,
   ChevronDown,
   ChevronUp,
   Copy,
+  Database,
+  FilePlus,
+  FolderOpen,
+  GitBranch,
+  Globe,
   LayoutPanelLeft,
+  Loader2,
   Moon,
   Pencil,
   Play,
   Plus,
+  Save,
   ScrollText,
+  Search,
+  Sparkles,
   Sun,
   Trash2,
+  User,
+  Wrench,
+  Zap,
+  type LucideIcon,
 } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react"
 import { toast } from "sonner"
 import { PerformanceDashboard } from "@/components/dashboard/PerformanceDashboard"
 import { CurlImportDialog } from "@/components/curl/CurlImportDialog"
 import { FlowCanvas } from "@/components/flow/FlowCanvas"
+import { NodeInspector } from "@/components/flow/NodeInspector"
 import { useTheme } from "@/components/theme/ThemeProvider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -59,6 +81,116 @@ import {
   selectActiveWorkflow,
   useWorkflowStore,
 } from "@/store/workflowStore"
+import type { FlowNodeKind } from "@/types/flow"
+
+type PaletteItem = {
+  kind: FlowNodeKind
+  title: string
+  blurb: string
+  Icon: LucideIcon
+}
+
+const PALETTE_ITEMS: PaletteItem[] = [
+  {
+    kind: "trigger",
+    title: "Trigger",
+    blurb: "Workflow entry (no incoming edges).",
+    Icon: Zap,
+  },
+  {
+    kind: "condition",
+    title: "Condition",
+    blurb: "Safe expr or Python block using ctx.",
+    Icon: GitBranch,
+  },
+  {
+    kind: "code",
+    title: "Code",
+    blurb: "Restricted Python; set result.",
+    Icon: Braces,
+  },
+  {
+    kind: "http",
+    title: "HTTP Request",
+    blurb: "Request via backend proxy; paste cURL on the node.",
+    Icon: Globe,
+  },
+]
+
+type PaletteCategoryId = "triggers" | "logic" | "api" | "data" | "utils"
+
+const PALETTE_CATEGORIES: {
+  id: PaletteCategoryId
+  label: string
+  description: string
+  Icon: LucideIcon
+  kinds: FlowNodeKind[]
+}[] = [
+  {
+    id: "triggers",
+    label: "Triggers",
+    description: "Start your flow",
+    Icon: Zap,
+    kinds: ["trigger"],
+  },
+  {
+    id: "logic",
+    label: "Logic",
+    description: "Branch & transform",
+    Icon: GitBranch,
+    kinds: ["condition", "code"],
+  },
+  {
+    id: "api",
+    label: "API",
+    description: "Network I/O",
+    Icon: Globe,
+    kinds: ["http"],
+  },
+  {
+    id: "data",
+    label: "Data",
+    description: "Coming soon",
+    Icon: Database,
+    kinds: [],
+  },
+  {
+    id: "utils",
+    label: "Utils",
+    description: "Coming soon",
+    Icon: Wrench,
+    kinds: [],
+  },
+]
+
+function itemForKind(kind: FlowNodeKind): PaletteItem | undefined {
+  return PALETTE_ITEMS.find((p) => p.kind === kind)
+}
+
+function InspectorPanel({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-xl backdrop-blur-xl dark:border-white/[0.07] dark:bg-slate-950/40",
+        className,
+      )}
+    >
+      <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-indigo-500/15 via-violet-500/5 to-transparent px-4 py-3 dark:border-white/[0.06]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300/80">
+          Editor
+        </p>
+        <p className="text-sm font-semibold tracking-tight text-foreground">
+          Properties
+        </p>
+      </div>
+      <ScrollArea className="min-h-0 min-w-0 flex-1">
+        <div className="p-4 pb-6">
+          <NodeInspector />
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
 
 export function AppShell() {
   const { resolvedTheme, toggleTheme } = useTheme()
@@ -67,7 +199,7 @@ export function AppShell() {
   const activeWf = useWorkflowStore(selectActiveWorkflow)
   const nodes = activeWf?.nodes ?? []
   const edges = activeWf?.edges ?? []
-  const addApiNodeBase = useWorkflowStore((s) => s.addApiNode)
+  const addNode = useWorkflowStore((s) => s.addNode)
   const createWorkflow = useWorkflowStore((s) => s.createWorkflow)
   const setActiveWorkflow = useWorkflowStore((s) => s.setActiveWorkflow)
   const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
@@ -82,8 +214,16 @@ export function AppShell() {
   const resetGraphRunUi = useWorkflowStore((s) => s.resetGraphRunUi)
   const abortRunUi = useWorkflowStore((s) => s.abortRunUi)
   const applyExecutionResults = useWorkflowStore((s) => s.applyExecutionResults)
+  const saveFlow = useWorkflowStore((s) => s.saveFlow)
+  const loadFlow = useWorkflowStore((s) => s.loadFlow)
+  const clearActiveWorkflowGraph = useWorkflowStore(
+    (s) => s.clearActiveWorkflowGraph,
+  )
+  const loadFlowInputRef = useRef<HTMLInputElement>(null)
 
   const [stressIterations, setStressIterations] = useState(5)
+  const [paletteQuery, setPaletteQuery] = useState("")
+  const [flowNameDraft, setFlowNameDraft] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [newDialogOpen, setNewDialogOpen] = useState(false)
   const [newName, setNewName] = useState("")
@@ -98,14 +238,42 @@ export function AppShell() {
     [workflows],
   )
 
-  const addApiNode = useCallback(() => {
-    addApiNodeBase()
-    toast.success("API block added")
-  }, [addApiNodeBase])
+  useEffect(() => {
+    setFlowNameDraft(activeWf?.name ?? "")
+  }, [activeWf?.id, activeWf?.name])
+
+  const paletteFiltered = useMemo(() => {
+    const qTrim = paletteQuery.trim()
+    const qLower = qTrim.toLowerCase()
+    const match = (item: PaletteItem) => {
+      if (!qLower) return true
+      return (
+        item.title.toLowerCase().includes(qLower) ||
+        item.blurb.toLowerCase().includes(qLower)
+      )
+    }
+    const rows = PALETTE_CATEGORIES.map((cat) => ({
+      ...cat,
+      items: cat.kinds
+        .map((k) => itemForKind(k))
+        .filter((x): x is PaletteItem => x != null && match(x)),
+    }))
+    return qTrim
+      ? rows.filter((c) => c.items.length > 0)
+      : rows
+  }, [paletteQuery])
+
+  const onPaletteClick = useCallback(
+    (kind: FlowNodeKind) => {
+      addNode(kind)
+      toast.success(`${kind} block added`)
+    },
+    [addNode],
+  )
 
   const onRun = async () => {
     if (!nodes.length) {
-      toast.error("Add at least one API block to run the workflow.")
+      toast.error("Add at least one block to run the workflow.")
       return
     }
     resetGraphRunUi()
@@ -125,7 +293,7 @@ export function AppShell() {
 
   const onStressRun = async () => {
     if (!nodes.length) {
-      toast.error("Add at least one API block to stress test.")
+      toast.error("Add at least one block to stress test.")
       return
     }
     const n = Math.min(100, Math.max(1, Math.floor(stressIterations)))
@@ -154,7 +322,7 @@ export function AppShell() {
   const exportScript = useCallback(
     (kind: "python" | "node") => {
       if (!nodes.length) {
-        toast.error("Add at least one API block to export a script.")
+        toast.error("Add at least one block to export a script.")
         return
       }
       const plan = buildExecutionPlan(nodes, edges)
@@ -184,6 +352,70 @@ export function AppShell() {
     },
     [nodes, edges, activeWf?.name],
   )
+
+  const onSaveFlowFile = useCallback(() => {
+    const payload = saveFlow()
+    if (!payload) {
+      toast.error("Nothing to save.")
+      return
+    }
+    const slug = slugifyFilename(payload.name)
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")
+    try {
+      downloadTextFile(
+        JSON.stringify(payload, null, 2),
+        `flowcheck-${slug}-${stamp}.flow.json`,
+        "application/json",
+      )
+      toast.success("Flow saved")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed")
+    }
+  }, [saveFlow])
+
+  const onPickLoadFlow = useCallback(() => {
+    loadFlowInputRef.current?.click()
+  }, [])
+
+  const onLoadFlowFile = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ""
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const text = String(reader.result ?? "")
+          const json: unknown = JSON.parse(text)
+          const res = loadFlow(json)
+          if (res.ok) {
+            toast.success("Flow loaded")
+          } else {
+            toast.error(res.message)
+          }
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not parse JSON file",
+          )
+        }
+      }
+      reader.onerror = () => toast.error("Could not read file")
+      reader.readAsText(file)
+    },
+    [loadFlow],
+  )
+
+  const onNewFlowGraph = useCallback(() => {
+    if (
+      !window.confirm(
+        "Clear the current workflow canvas (nodes and edges)? Logs and stress history for this workflow will be cleared.",
+      )
+    ) {
+      return
+    }
+    clearActiveWorkflowGraph()
+    toast.success("Canvas cleared")
+  }, [clearActiveWorkflowGraph])
 
   const openNewWorkflow = () => {
     setNewName(`Workflow ${Object.keys(workflows).length + 1}`)
@@ -224,14 +456,22 @@ export function AppShell() {
   const bottomHeight = resultsOpen ? "min-h-[280px] max-h-[40vh]" : "min-h-0"
 
   return (
-    <div className="flex h-svh max-h-svh flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex h-14 min-w-0 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 shadow-sm">
+    <div className="relative flex h-svh max-h-svh flex-col overflow-hidden bg-background text-foreground">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40 dark:opacity-100"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 50% at 50% -30%, color-mix(in oklab, var(--fc-accent) 22%, transparent), transparent 55%), radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--fc-accent-muted) 12%, transparent), transparent 45%)",
+        }}
+      />
+      <header className="relative z-10 flex h-[3.25rem] min-w-0 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-card/70 px-3 shadow-lg backdrop-blur-2xl sm:h-14 sm:px-4 dark:border-white/[0.06] dark:bg-slate-950/55">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="shrink-0"
+            className="shrink-0 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
             aria-expanded={sidebarOpen}
             aria-controls="app-sidebar"
             aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
@@ -240,21 +480,98 @@ export function AppShell() {
           >
             <LayoutPanelLeft className="size-4" />
           </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold tracking-tight">
-              FlowCheck
-            </h1>
-            <p className="truncate text-xs text-muted-foreground">
-              Workflow sandbox simulator
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+              <Sparkles className="size-4 text-white" />
+            </div>
+            <div className="min-w-0 hidden sm:block">
+              <h1 className="truncate bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-sm font-bold tracking-tight dark:from-white dark:to-white/75">
+                FlowCheck
+              </h1>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">
+                Visual workflow lab
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden min-w-0 max-w-md flex-1 px-2 md:flex md:justify-center">
+          <div className="flex w-full max-w-sm flex-col gap-0.5">
+            <label htmlFor="fc-flow-name" className="sr-only">
+              Flow name
+            </label>
+            <Input
+              id="fc-flow-name"
+              value={flowNameDraft}
+              onChange={(e) => setFlowNameDraft(e.target.value)}
+              onBlur={() => {
+                if (!activeWf) return
+                const next = flowNameDraft.trim() || activeWf.name
+                if (next !== activeWf.name) {
+                  renameWorkflow(activeWorkflowId, next)
+                }
+                setFlowNameDraft(next)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              }}
+              className="h-9 border-white/15 bg-white/[0.06] text-center text-sm font-medium shadow-inner backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+              placeholder="Untitled flow"
+            />
+            <p className="text-center text-[10px] text-muted-foreground">
+              Active workflow · press Enter to save name
             </p>
           </div>
         </div>
-        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
+
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+          <input
+            ref={loadFlowInputRef}
+            type="file"
+            accept=".json,application/json,.flow.json"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={onLoadFlowFile}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            title="Download current flow as .flow.json"
+            onClick={onSaveFlowFile}
+          >
+            <Save className="size-3.5" />
+            <span className="hidden sm:inline">Save</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            title="Load a .flow.json file"
+            onClick={onPickLoadFlow}
+          >
+            <FolderOpen className="size-3.5" />
+            <span className="hidden sm:inline">Load</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            title="Clear nodes and edges on the active workflow"
+            onClick={onNewFlowGraph}
+          >
+            <FilePlus className="size-3.5" />
+            <span className="hidden sm:inline">New</span>
+          </Button>
           <Sheet>
             <SheetTrigger
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
-                "cursor-pointer gap-1.5",
+                "cursor-pointer gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]",
               )}
             >
               <BarChart3 className="size-3.5" />
@@ -262,9 +579,9 @@ export function AppShell() {
             </SheetTrigger>
             <SheetContent
               side="right"
-              className="flex h-[100dvh] max-h-[100dvh] w-full max-w-full flex-col gap-0 border-l border-border p-0 sm:max-w-lg"
+              className="flex h-[100dvh] max-h-[100dvh] w-full max-w-full flex-col gap-0 border-l border-white/10 bg-slate-950/90 p-0 backdrop-blur-2xl sm:max-w-lg dark:border-white/[0.08]"
             >
-              <SheetHeader className="shrink-0 space-y-1.5 border-b border-border px-4 py-4 pr-14 text-left">
+              <SheetHeader className="shrink-0 space-y-1.5 border-b border-white/10 px-4 py-4 pr-14 text-left dark:border-white/[0.06]">
                 <SheetTitle className="text-lg">Performance</SheetTitle>
                 <SheetDescription className="text-pretty">
                   Charts use data from runs and stress tests on the{" "}
@@ -279,11 +596,20 @@ export function AppShell() {
               </ScrollArea>
             </SheetContent>
           </Sheet>
+          <div
+            className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-1 pr-2.5 shadow-sm backdrop-blur-md sm:flex dark:border-white/10 dark:bg-white/[0.04]"
+            title="Signed in locally"
+          >
+            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/90 to-violet-600 text-[10px] font-bold text-white shadow-inner">
+              <User className="size-3.5 opacity-95" />
+            </div>
+            <span className="text-xs font-medium text-foreground/90">You</span>
+          </div>
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="shrink-0"
+            className="shrink-0 border-white/15 bg-white/5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
             onClick={toggleTheme}
             aria-label={
               resolvedTheme === "dark"
@@ -306,10 +632,11 @@ export function AppShell() {
             <DropdownMenuTrigger
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
-                "cursor-pointer gap-1",
+                "cursor-pointer gap-1 border-white/15 bg-white/5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]",
               )}
             >
-              Generate script
+              <span className="hidden sm:inline">Export</span>
+              <span className="sm:hidden">Script</span>
               <ChevronDown className="size-3.5 opacity-60" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -323,37 +650,71 @@ export function AppShell() {
           </DropdownMenu>
           <Button
             size="sm"
-            className="gap-1.5"
+            className={cn(
+              "gap-2 px-4 shadow-lg shadow-indigo-500/20 transition-all duration-200",
+              "bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-500/95 hover:to-violet-600/95",
+              "active:scale-[0.98] disabled:shadow-none",
+            )}
             disabled={runInFlight || !nodes.length}
             onClick={() => void onRun()}
           >
-            <Play className="size-3.5" />
-            {runInFlight ? "Running…" : "Run workflow"}
+            {runInFlight ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Play className="size-3.5 fill-current" />
+            )}
+            <span className="hidden font-semibold sm:inline">
+              {runInFlight ? "Running…" : "Run"}
+            </span>
           </Button>
         </div>
       </header>
 
-      <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
+      <div className="relative z-[1] border-b border-white/10 bg-card/50 px-3 py-2 backdrop-blur-md md:hidden dark:border-white/[0.06] dark:bg-slate-950/40">
+        <label htmlFor="fc-flow-name-mobile" className="sr-only">
+          Flow name
+        </label>
+        <Input
+          id="fc-flow-name-mobile"
+          value={flowNameDraft}
+          onChange={(e) => setFlowNameDraft(e.target.value)}
+          onBlur={() => {
+            if (!activeWf) return
+            const next = flowNameDraft.trim() || activeWf.name
+            if (next !== activeWf.name) {
+              renameWorkflow(activeWorkflowId, next)
+            }
+            setFlowNameDraft(next)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+          }}
+          className="h-9 border-white/15 bg-white/[0.06] text-sm font-medium dark:border-white/10"
+          placeholder="Flow name"
+        />
+      </div>
+
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col md:flex-row">
         {sidebarOpen ? (
           <button
             type="button"
             aria-label="Close sidebar"
-            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            className="fixed inset-0 z-30 bg-black/55 backdrop-blur-sm md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         ) : null}
         <aside
           id="app-sidebar"
           className={cn(
-            "flex min-h-0 w-full max-w-[280px] flex-col overflow-x-hidden overflow-y-auto border-border bg-sidebar transition-[transform,width,opacity] duration-200 ease-out",
-            "fixed bottom-0 left-0 top-14 z-40 border-b border-r shadow-xl md:static md:top-auto md:z-auto md:max-w-none md:border-b-0 md:shadow-none",
-            "md:w-[280px] md:max-w-[280px] md:shrink-0 md:border-r",
+            "flex min-h-0 w-full max-w-[300px] flex-col overflow-x-hidden overflow-y-auto border-white/10 bg-sidebar/85 backdrop-blur-2xl transition-[transform,width,opacity] duration-300 ease-out dark:border-white/[0.06] dark:bg-slate-950/55",
+            "fixed bottom-0 left-0 top-[6.25rem] z-40 border-b border-r shadow-2xl sm:top-[6.5rem] md:static md:top-auto md:z-auto md:max-w-none md:border-b-0 md:shadow-none",
+            "md:w-[300px] md:max-w-[300px] md:shrink-0 md:border-r",
             sidebarOpen
               ? "translate-x-0"
               : "-translate-x-full md:translate-x-0 md:w-0 md:max-w-0 md:overflow-hidden md:border-0 md:opacity-0 md:shadow-none md:pointer-events-none",
           )}
         >
-          <div className="space-y-2 border-b border-border p-4">
+          <div className="space-y-2 border-b border-white/10 p-4 dark:border-white/[0.06]">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Workflows
@@ -375,10 +736,10 @@ export function AppShell() {
                   <li key={w.id} className="min-w-0">
                     <div
                       className={cn(
-                        "flex min-w-0 items-center gap-1 rounded-md border px-1.5 py-1",
+                        "flex min-w-0 items-center gap-1 rounded-xl border px-1.5 py-1 transition-colors",
                         w.id === activeWorkflowId
-                          ? "border-primary/50 bg-primary/10 dark:bg-primary/15"
-                          : "border-border/60 bg-card/90 hover:bg-muted/80 dark:border-border dark:bg-muted/40 dark:hover:bg-muted/60",
+                          ? "border-indigo-400/45 bg-indigo-500/15 shadow-[0_0_20px_-8px_rgba(99,102,241,0.45)]"
+                          : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07] dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
                       )}
                     >
                       <button
@@ -430,7 +791,7 @@ export function AppShell() {
             </ScrollArea>
           </div>
 
-          <div className="space-y-2 border-b border-border p-4">
+          <div className="space-y-2 border-b border-white/10 p-4 dark:border-white/[0.06]">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Stress test
             </p>
@@ -443,7 +804,7 @@ export function AppShell() {
                 type="number"
                 min={1}
                 max={100}
-                className="h-8 w-16"
+                className="h-8 w-16 rounded-lg border-white/15 bg-white/[0.05] dark:border-white/10"
                 value={stressIterations}
                 onChange={(e) =>
                   setStressIterations(Number(e.target.value) || 1)
@@ -462,46 +823,109 @@ export function AppShell() {
             </div>
           </div>
 
-          <div className="space-y-1 border-b border-border p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Available blocks
-            </p>
-            <p className="text-xs leading-relaxed break-words text-muted-foreground">
-              Drag on canvas, connect top-to-bottom for order. Fork one block to
-              run requests in parallel.
+          <div className="space-y-3 border-b border-white/10 p-4 dark:border-white/[0.06]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={paletteQuery}
+                onChange={(e) => setPaletteQuery(e.target.value)}
+                placeholder="Search blocks…"
+                className="h-9 border-white/15 bg-white/[0.05] pl-8 text-sm dark:border-white/10"
+              />
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Drag a card onto the canvas or tap to add. Connect top → bottom
+              for order; branch for parallel waves.
             </p>
           </div>
-          <div className="min-w-0 p-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto w-full max-w-full flex-col items-start gap-1 border-dashed border-border/80 bg-card py-3 text-left whitespace-normal shadow-sm dark:border-border dark:bg-card/60 dark:hover:bg-muted/50"
-              onClick={addApiNode}
-            >
-              <span className="w-full min-w-0 text-sm font-medium break-words text-foreground">
-                + API block
-              </span>
-              <span className="w-full min-w-0 text-left text-[11px] font-normal break-words text-muted-foreground dark:text-muted-foreground">
-                Paste cURL on the node to configure the request.
-              </span>
-            </Button>
+
+          <div className="flex min-w-0 flex-col gap-5 p-4 pb-8">
+            {paletteFiltered.map((cat) => {
+              const CategoryIcon = cat.Icon
+              return (
+              <div key={cat.id} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] dark:border-white/[0.08]">
+                    <CategoryIcon className="size-3.5 text-indigo-300/90" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-foreground/90">
+                      {cat.label}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {cat.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {cat.items.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-3 py-3 text-[11px] italic text-muted-foreground dark:border-white/[0.07]">
+                      More blocks soon.
+                    </p>
+                  ) : (
+                    cat.items.map(({ kind, title, blurb, Icon }) => (
+                      <div
+                        key={kind}
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/reactflow", kind)
+                          e.dataTransfer.effectAllowed = "move"
+                        }}
+                        onClick={() => onPaletteClick(kind)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            onPaletteClick(kind)
+                          }
+                        }}
+                        className={cn(
+                          "group flex h-auto w-full max-w-full cursor-grab flex-col items-start gap-1 rounded-xl border py-2.5 pl-3 pr-2 text-left shadow-md outline-none transition-all duration-200",
+                          "border-white/12 bg-gradient-to-br from-white/[0.07] to-transparent hover:border-indigo-400/35 hover:shadow-lg hover:shadow-indigo-500/10 active:cursor-grabbing",
+                          "dark:border-white/[0.08] dark:from-white/[0.05] dark:to-transparent dark:hover:border-indigo-400/30",
+                          "focus-visible:ring-2 focus-visible:ring-indigo-400/40",
+                        )}
+                      >
+                        <span className="flex w-full min-w-0 items-center gap-2">
+                          <Icon className="size-4 shrink-0 text-indigo-300/80 transition-colors group-hover:text-indigo-200" />
+                          <span className="min-w-0 text-sm font-semibold tracking-tight break-words text-foreground">
+                            {title}
+                          </span>
+                        </span>
+                        <span className="w-full min-w-0 pl-6 text-left text-[11px] leading-snug break-words text-muted-foreground">
+                          {blurb}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              )
+            })}
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 p-3 md:min-w-0">
-          <div className="flex min-h-0 flex-1 flex-col">
-            <FlowCanvas />
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 p-2 sm:p-3 md:min-w-0">
+            <div className="min-h-0 flex-1">
+              <FlowCanvas />
+            </div>
 
-          <div
-            className={cn(
-              "mt-3 flex shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all",
-              bottomHeight,
-            )}
-          >
+            <div className="mt-2 max-h-[40vh] min-h-[200px] shrink-0 lg:hidden">
+              <InspectorPanel className="h-full" />
+            </div>
+
+            <div
+              className={cn(
+                "mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/45 shadow-xl backdrop-blur-xl transition-all dark:border-white/[0.06] dark:bg-slate-950/40",
+                bottomHeight,
+              )}
+            >
             <button
               type="button"
-              className="flex min-w-0 w-full cursor-pointer items-center justify-between gap-2 border-b border-border px-4 py-2.5 text-left hover:bg-muted/40"
+              className="flex min-w-0 w-full cursor-pointer items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5 text-left transition-colors hover:bg-white/[0.04] dark:border-white/[0.06]"
               onClick={() => setResultsOpen(!resultsOpen)}
             >
               <span className="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium">
@@ -536,7 +960,7 @@ export function AppShell() {
                       lastRunLogs.map((log) => (
                         <li
                           key={log.id}
-                          className="min-w-0 overflow-hidden rounded-md border border-border bg-muted/35 px-3 py-2 text-xs shadow-sm dark:border-border dark:bg-muted/25"
+                          className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs shadow-sm dark:border-white/[0.07] dark:bg-white/[0.03]"
                         >
                           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
                             <span className="shrink-0">
@@ -556,6 +980,14 @@ export function AppShell() {
                                 {log.durationMs.toFixed(1)} ms
                               </span>
                             ) : null}
+                            {log.outcome ? (
+                              <span className="shrink-0 rounded border border-border/80 bg-background/80 px-1 py-px capitalize">
+                                {log.outcome.replace(/_/g, " ")}
+                              </span>
+                            ) : null}
+                            {log.attempts != null && log.attempts > 1 ? (
+                              <span className="shrink-0">{log.attempts}×</span>
+                            ) : null}
                           </div>
                           <p
                             className="mt-1 break-all font-mono text-[11px] text-foreground [overflow-wrap:anywhere]"
@@ -571,6 +1003,11 @@ export function AppShell() {
                               {log.error}
                             </p>
                           ) : null}
+                          {log.errorDetail ? (
+                            <p className="mt-1 text-[11px] break-words whitespace-pre-wrap text-muted-foreground">
+                              {log.errorDetail}
+                            </p>
+                          ) : null}
                         </li>
                       ))
                     )}
@@ -580,6 +1017,11 @@ export function AppShell() {
             ) : null}
           </div>
         </main>
+
+          <aside className="hidden min-h-0 w-full max-w-md shrink-0 flex-col border-l border-white/10 bg-transparent py-3 pl-0 pr-3 lg:flex xl:max-w-[24rem] dark:border-white/[0.06]">
+            <InspectorPanel className="min-h-0 flex-1" />
+          </aside>
+        </div>
       </div>
 
       <CurlImportDialog />

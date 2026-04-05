@@ -1,19 +1,39 @@
 import type { Node } from "@xyflow/react"
-import type { AppNode } from "@/types/flow"
+import type { HttpNodeData } from "@/types/flow"
 
 /**
  * MiniMap renders SVG rects; CSS variables often fail to resolve on `fill` here.
- * Use explicit colors keyed off the same theme + HTTP method as ApiNode badges.
+ * HTTP nodes use method tint; other node kinds use distinct hues.
  */
 export function minimapNodeFill(node: Node, theme: "light" | "dark"): string {
   const baseLight = "#ffffff"
   const baseDark = "oklch(0.26 0 0)"
 
-  if (node.type !== "api") {
+  const t = node.type
+
+  if (t === "condition") {
+    return theme === "dark"
+      ? "color-mix(in oklab, oklch(0.62 0.18 305) 42%, oklch(0.23 0 0))"
+      : "color-mix(in oklab, oklch(0.72 0.16 305) 26%, white)"
+  }
+  if (t === "code") {
+    return theme === "dark"
+      ? "color-mix(in oklab, oklch(0.62 0.14 145) 42%, oklch(0.23 0 0))"
+      : "color-mix(in oklab, oklch(0.75 0.12 145) 24%, white)"
+  }
+  if (t === "trigger") {
+    return theme === "dark"
+      ? "color-mix(in oklab, oklch(0.65 0.16 55) 40%, oklch(0.23 0 0))"
+      : "color-mix(in oklab, oklch(0.78 0.14 55) 22%, white)"
+  }
+
+  if (t !== "http") {
     return theme === "dark" ? baseDark : baseLight
   }
 
-  const m = String((node as AppNode).data?.method ?? "GET").toUpperCase()
+  const m = String(
+    (node as Node<HttpNodeData, "http">).data.method ?? "GET",
+  ).toUpperCase()
 
   if (theme === "dark") {
     if (m === "GET")

@@ -15,7 +15,7 @@ export function buildExecutionPlan(
 ): ExecutionPlan {
   const ids = new Set(nodes.map((n) => n.id))
   if (ids.size === 0) {
-    return { ok: false, message: "Add at least one API block." }
+    return { ok: false, message: "Add at least one block." }
   }
 
   const preds: Record<string, Set<string>> = {}

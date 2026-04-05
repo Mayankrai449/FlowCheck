@@ -5,21 +5,10 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react"
 
 const STORAGE_KEY = "flowcheck-theme"
-
-function subscribeSystemTheme(cb: () => void) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)")
-  mq.addEventListener("change", cb)
-  return () => mq.removeEventListener("change", cb)
-}
-
-function getSystemIsDark() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-}
 
 function readExplicit(): "light" | "dark" | null {
   try {
@@ -39,17 +28,11 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemIsDark = useSyncExternalStore(
-    subscribeSystemTheme,
-    getSystemIsDark,
-    () => false,
-  )
   const [explicit, setExplicit] = useState<"light" | "dark" | null>(() =>
     readExplicit(),
   )
 
-  const resolvedTheme: "light" | "dark" =
-    explicit ?? (systemIsDark ? "dark" : "light")
+  const resolvedTheme: "light" | "dark" = explicit ?? "dark"
 
   useEffect(() => {
     document.documentElement.classList.toggle(

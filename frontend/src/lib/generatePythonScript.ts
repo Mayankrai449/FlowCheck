@@ -12,6 +12,12 @@ function pyDict(h: Record<string, string>): string {
 
 function oneStep(node: AppNode): string {
   const sid = safeId(node.id)
+  if (node.type !== "http") {
+    return [
+      `async def step_${sid}(client: httpx.AsyncClient) -> None:`,
+      `    print(f"[${node.id.slice(0, 8)}] (skipped — not HTTP)")`,
+    ].join("\n")
+  }
   const m = node.data.method.toUpperCase()
   const url = node.data.url
   const headers = pyDict(node.data.headers ?? {})

@@ -47,6 +47,8 @@
 }
 
 :root {
+  --fc-accent: oklch(0.52 0.2 278);
+  --fc-accent-muted: oklch(0.45 0.16 278);
   --radius: 0.5rem;
   --background: #f9fafb;
   --foreground: #111827;
@@ -98,49 +100,121 @@
   }
 }
 
+@layer utilities {
+  .fc-glass {
+    @apply border border-white/10 bg-white/5 shadow-lg backdrop-blur-xl dark:border-white/[0.08] dark:bg-slate-950/40;
+  }
+  .fc-glass-panel {
+    @apply border border-white/10 bg-slate-950/55 shadow-xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-slate-950/50;
+  }
+  .fc-text-gradient {
+    @apply bg-gradient-to-r from-indigo-200 via-violet-200 to-fuchsia-200 bg-clip-text text-transparent dark:from-indigo-300 dark:via-violet-300 dark:to-fuchsia-300;
+  }
+}
+
+@keyframes fc-node-running {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--fc-accent) 35%, transparent),
+      0 12px 40px -12px color-mix(in oklab, var(--fc-accent) 25%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--fc-accent) 55%, transparent),
+      0 16px 48px -8px color-mix(in oklab, var(--fc-accent) 40%, transparent);
+  }
+}
+
+@keyframes fc-edge-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --fc-accent: oklch(0.72 0.19 278);
+  --fc-accent-muted: oklch(0.55 0.16 278);
+  --background: oklch(0.13 0.02 264);
+  --foreground: oklch(0.96 0.01 264);
+  --card: oklch(0.17 0.025 268);
+  --card-foreground: oklch(0.96 0.01 264);
+  --popover: oklch(0.18 0.03 268);
+  --popover-foreground: oklch(0.96 0.01 264);
+  --primary: oklch(0.72 0.19 278);
+  --primary-foreground: oklch(0.12 0.02 264);
+  --secondary: oklch(0.22 0.03 268);
+  --secondary-foreground: oklch(0.94 0.01 264);
+  --muted: oklch(0.22 0.025 268);
+  --muted-foreground: oklch(0.68 0.02 264);
+  --accent: oklch(0.26 0.06 278);
+  --accent-foreground: oklch(0.96 0.01 264);
+  --destructive: oklch(0.62 0.2 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.62 0.18 278);
+  --chart-1: oklch(0.72 0.19 278);
+  --chart-2: oklch(0.65 0.2 160);
+  --chart-3: oklch(0.75 0.15 85);
+  --chart-4: oklch(0.6 0.18 25);
+  --chart-5: oklch(0.55 0.12 264);
+  --sidebar: oklch(0.15 0.028 268);
+  --sidebar-foreground: oklch(0.94 0.01 264);
+  --sidebar-primary: oklch(0.72 0.19 278);
+  --sidebar-primary-foreground: oklch(0.12 0.02 264);
+  --sidebar-accent: oklch(0.22 0.04 278);
+  --sidebar-accent-foreground: oklch(0.96 0.01 264);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.62 0.18 278);
 }
 
 /* React Flow: html.dark + .react-flow.dark (see FlowCanvas) — crisper edges & minimap on app tokens */
 .dark .react-flow.dark {
-  --xy-edge-stroke-default: color-mix(in oklab, var(--foreground) 42%, transparent);
-  --xy-edge-stroke-selected-default: color-mix(in oklab, var(--foreground) 68%, transparent);
-  --xy-connectionline-stroke-default: color-mix(in oklab, var(--foreground) 50%, transparent);
+  --xy-edge-stroke-default: color-mix(in oklab, var(--fc-accent-muted) 55%, transparent);
+  --xy-edge-stroke-selected-default: color-mix(in oklab, var(--fc-accent) 75%, white);
+  --xy-connectionline-stroke-default: color-mix(in oklab, var(--fc-accent) 65%, transparent);
   --xy-background-color-default: transparent;
-  --xy-controls-button-background-color-default: var(--card);
+  --xy-controls-button-background-color-default: color-mix(
+    in oklab,
+    var(--card) 88%,
+    transparent
+  );
   --xy-controls-button-background-color-hover-default: var(--muted);
   --xy-controls-button-color-default: var(--foreground);
   --xy-controls-button-color-hover-default: var(--foreground);
   --xy-controls-button-border-color-default: var(--border);
+}
+
+.dark .react-flow.dark .react-flow__edge-path {
+  stroke-linecap: round;
+  transition:
+    stroke 0.25s ease,
+    filter 0.25s ease;
+}
+
+.dark .react-flow.dark .react-flow__edge.selected .react-flow__edge-path {
+  stroke: color-mix(in oklab, var(--fc-accent) 80%, white);
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--fc-accent) 45%, transparent));
+}
+
+.dark .react-flow.dark .react-flow__edge.animated .react-flow__edge-path {
+  stroke: color-mix(in oklab, var(--fc-accent) 70%, var(--foreground));
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--fc-accent) 35%, transparent));
+  stroke-dasharray: 6 4;
+  animation: fc-edge-dash 0.45s linear infinite;
+}
+
+.react-flow .react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 6 4;
+  animation: fc-edge-dash 0.5s linear infinite;
+}
+
+.fc-flow-canvas-host {
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      color-mix(in oklab, var(--fc-accent) 12%, transparent),
+      transparent 55%
+    ),
+    var(--background);
 }

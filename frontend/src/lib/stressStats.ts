@@ -22,7 +22,11 @@ export function buildStressSummary(
       if (!r) continue
       samples += 1
       const ok =
-        !r.error && (r.statusCode === null || r.statusCode < 400)
+        r.outcome === "success"
+          ? true
+          : r.outcome === "failed" || r.outcome === "failed_after_retries"
+            ? false
+            : !r.error && (r.statusCode === null || r.statusCode < 400)
       if (ok) successes += 1
       else fails += 1
       minMs = Math.min(minMs, r.durationMs)
