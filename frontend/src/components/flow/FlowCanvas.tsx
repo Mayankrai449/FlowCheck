@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { CodeNode } from "@/components/flow/CodeNode"
 import { ConditionNode } from "@/components/flow/ConditionNode"
+import { DeletableEdge } from "@/components/flow/DeletableEdge"
 import { HttpNode } from "@/components/flow/HttpNode"
 import { TriggerNode } from "@/components/flow/TriggerNode"
 import { Button } from "@/components/ui/button"
@@ -96,9 +97,16 @@ function FlowCanvasInner() {
     [],
   )
 
+  const edgeTypes = useMemo(
+    () => ({
+      deletable: DeletableEdge,
+    }),
+    [],
+  )
+
   const defaultEdgeOptions = useMemo(
     () => ({
-      type: "smoothstep" as const,
+      type: "deletable" as const,
       animated: runInFlight,
       style: {
         strokeWidth: runInFlight ? 2.25 : 1.75,
@@ -189,6 +197,7 @@ function FlowCanvasInner() {
           setWorkflowViewport({ x: vp.x, y: vp.y, zoom: vp.zoom })
         }}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView
         fitViewOptions={{ padding: 0.2 }}

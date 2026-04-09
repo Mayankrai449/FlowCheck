@@ -193,6 +193,10 @@ function migrateWorkflowRecord(wf: SavedWorkflow): SavedWorkflow {
   return {
     ...wf,
     nodes: migrateSavedWorkflowNodes(wf.nodes as unknown[]),
+    edges: wf.edges.map((e) => ({
+      ...e,
+      type: e.type === "smoothstep" || !e.type ? "deletable" : e.type,
+    })),
   }
 }
 
