@@ -47,8 +47,8 @@
 }
 
 :root {
-  --fc-accent: oklch(0.52 0.2 278);
-  --fc-accent-muted: oklch(0.45 0.16 278);
+  --fc-accent: oklch(0.52 0.18 250);
+  --fc-accent-muted: oklch(0.45 0.14 250);
   --radius: 0.5rem;
   --background: #f9fafb;
   --foreground: #111827;
@@ -108,7 +108,7 @@
     @apply border border-white/10 bg-slate-950/55 shadow-xl backdrop-blur-2xl dark:border-white/[0.06] dark:bg-slate-950/50;
   }
   .fc-text-gradient {
-    @apply bg-gradient-to-r from-indigo-200 via-violet-200 to-fuchsia-200 bg-clip-text text-transparent dark:from-indigo-300 dark:via-violet-300 dark:to-fuchsia-300;
+    @apply bg-gradient-to-r from-blue-200 via-sky-200 to-cyan-200 bg-clip-text text-transparent dark:from-blue-300 dark:via-sky-300 dark:to-cyan-300;
   }
 }
 
@@ -133,39 +133,39 @@
 }
 
 .dark {
-  --fc-accent: oklch(0.72 0.19 278);
-  --fc-accent-muted: oklch(0.55 0.16 278);
-  --background: oklch(0.13 0.02 264);
-  --foreground: oklch(0.96 0.01 264);
-  --card: oklch(0.17 0.025 268);
-  --card-foreground: oklch(0.96 0.01 264);
-  --popover: oklch(0.18 0.03 268);
-  --popover-foreground: oklch(0.96 0.01 264);
-  --primary: oklch(0.72 0.19 278);
-  --primary-foreground: oklch(0.12 0.02 264);
-  --secondary: oklch(0.22 0.03 268);
-  --secondary-foreground: oklch(0.94 0.01 264);
-  --muted: oklch(0.22 0.025 268);
-  --muted-foreground: oklch(0.68 0.02 264);
-  --accent: oklch(0.26 0.06 278);
-  --accent-foreground: oklch(0.96 0.01 264);
+  --fc-accent: oklch(0.68 0.16 250);
+  --fc-accent-muted: oklch(0.52 0.14 250);
+  --background: oklch(0.13 0.02 250);
+  --foreground: oklch(0.96 0.01 250);
+  --card: oklch(0.17 0.025 250);
+  --card-foreground: oklch(0.96 0.01 250);
+  --popover: oklch(0.18 0.03 250);
+  --popover-foreground: oklch(0.96 0.01 250);
+  --primary: oklch(0.68 0.16 250);
+  --primary-foreground: oklch(0.12 0.02 250);
+  --secondary: oklch(0.22 0.03 250);
+  --secondary-foreground: oklch(0.94 0.01 250);
+  --muted: oklch(0.22 0.025 250);
+  --muted-foreground: oklch(0.68 0.02 250);
+  --accent: oklch(0.26 0.06 250);
+  --accent-foreground: oklch(0.96 0.01 250);
   --destructive: oklch(0.62 0.2 25);
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.62 0.18 278);
-  --chart-1: oklch(0.72 0.19 278);
+  --ring: oklch(0.58 0.16 250);
+  --chart-1: oklch(0.68 0.16 250);
   --chart-2: oklch(0.65 0.2 160);
   --chart-3: oklch(0.75 0.15 85);
   --chart-4: oklch(0.6 0.18 25);
-  --chart-5: oklch(0.55 0.12 264);
-  --sidebar: oklch(0.15 0.028 268);
-  --sidebar-foreground: oklch(0.94 0.01 264);
-  --sidebar-primary: oklch(0.72 0.19 278);
-  --sidebar-primary-foreground: oklch(0.12 0.02 264);
-  --sidebar-accent: oklch(0.22 0.04 278);
-  --sidebar-accent-foreground: oklch(0.96 0.01 264);
+  --chart-5: oklch(0.55 0.12 250);
+  --sidebar: oklch(0.15 0.028 250);
+  --sidebar-foreground: oklch(0.94 0.01 250);
+  --sidebar-primary: oklch(0.68 0.16 250);
+  --sidebar-primary-foreground: oklch(0.12 0.02 250);
+  --sidebar-accent: oklch(0.22 0.04 250);
+  --sidebar-accent-foreground: oklch(0.96 0.01 250);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.62 0.18 278);
+  --sidebar-ring: oklch(0.58 0.16 250);
 }
 
 /* React Flow: html.dark + .react-flow.dark (see FlowCanvas) — crisper edges & minimap on app tokens */
@@ -217,4 +217,42 @@
       transparent 55%
     ),
     var(--background);
+}
+
+/* ── Edge delete button ── */
+.fc-edge-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1.5px solid oklch(0.65 0.2 25 / 60%);
+  background: oklch(0.25 0.02 25 / 92%);
+  color: oklch(0.78 0.16 25);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px oklch(0 0 0 / 40%);
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+.fc-edge-delete-btn:hover {
+  background: oklch(0.35 0.12 25 / 95%);
+  color: oklch(0.9 0.14 25);
+  border-color: oklch(0.7 0.2 25 / 80%);
+  box-shadow: 0 2px 12px oklch(0.55 0.2 25 / 35%);
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+:root .fc-edge-delete-btn {
+  border-color: oklch(0.6 0.18 25 / 50%);
+  background: oklch(0.96 0 0 / 95%);
+  color: oklch(0.55 0.2 25);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 12%);
+}
+:root .fc-edge-delete-btn:hover {
+  background: oklch(0.92 0.04 25 / 98%);
+  color: oklch(0.5 0.22 25);
+  border-color: oklch(0.6 0.2 25 / 70%);
+  box-shadow: 0 2px 12px oklch(0.55 0.18 25 / 22%);
 }

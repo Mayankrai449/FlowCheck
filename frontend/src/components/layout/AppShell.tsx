@@ -1,13 +1,10 @@
 import {
   BarChart3,
-  Braces,
   ChevronDown,
   ChevronUp,
   Copy,
-  Database,
   FilePlus,
   FolderOpen,
-  GitBranch,
   Globe,
   LayoutPanelLeft,
   Loader2,
@@ -22,8 +19,6 @@ import {
   Sun,
   Trash2,
   User,
-  Wrench,
-  Zap,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -92,24 +87,6 @@ type PaletteItem = {
 
 const PALETTE_ITEMS: PaletteItem[] = [
   {
-    kind: "trigger",
-    title: "Trigger",
-    blurb: "Workflow entry (no incoming edges).",
-    Icon: Zap,
-  },
-  {
-    kind: "condition",
-    title: "Condition",
-    blurb: "Safe expr or Python block using ctx.",
-    Icon: GitBranch,
-  },
-  {
-    kind: "code",
-    title: "Code",
-    blurb: "Restricted Python; set result.",
-    Icon: Braces,
-  },
-  {
     kind: "http",
     title: "HTTP Request",
     blurb: "Request via backend proxy; paste cURL on the node.",
@@ -117,7 +94,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   },
 ]
 
-type PaletteCategoryId = "triggers" | "logic" | "api" | "data" | "utils"
+type PaletteCategoryId = "api"
 
 const PALETTE_CATEGORIES: {
   id: PaletteCategoryId
@@ -127,39 +104,11 @@ const PALETTE_CATEGORIES: {
   kinds: FlowNodeKind[]
 }[] = [
   {
-    id: "triggers",
-    label: "Triggers",
-    description: "Start your flow",
-    Icon: Zap,
-    kinds: ["trigger"],
-  },
-  {
-    id: "logic",
-    label: "Logic",
-    description: "Branch & transform",
-    Icon: GitBranch,
-    kinds: ["condition", "code"],
-  },
-  {
     id: "api",
     label: "API",
     description: "Network I/O",
     Icon: Globe,
     kinds: ["http"],
-  },
-  {
-    id: "data",
-    label: "Data",
-    description: "Coming soon",
-    Icon: Database,
-    kinds: [],
-  },
-  {
-    id: "utils",
-    label: "Utils",
-    description: "Coming soon",
-    Icon: Wrench,
-    kinds: [],
   },
 ]
 
@@ -175,8 +124,8 @@ function InspectorPanel({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-indigo-500/15 via-violet-500/5 to-transparent px-4 py-3 dark:border-white/[0.06]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300/80">
+      <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-blue-500/15 via-sky-500/5 to-transparent px-4 py-3 dark:border-white/[0.06]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-300/80">
           Editor
         </p>
         <p className="text-sm font-semibold tracking-tight text-foreground">
@@ -481,7 +430,7 @@ export function AppShell() {
             <LayoutPanelLeft className="size-4" />
           </Button>
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
               <Sparkles className="size-4 text-white" />
             </div>
             <div className="min-w-0 hidden sm:block">
@@ -600,7 +549,7 @@ export function AppShell() {
             className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-1 pr-2.5 shadow-sm backdrop-blur-md sm:flex dark:border-white/10 dark:bg-white/[0.04]"
             title="Signed in locally"
           >
-            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/90 to-violet-600 text-[10px] font-bold text-white shadow-inner">
+            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/90 to-indigo-600 text-[10px] font-bold text-white shadow-inner">
               <User className="size-3.5 opacity-95" />
             </div>
             <span className="text-xs font-medium text-foreground/90">You</span>
@@ -651,8 +600,8 @@ export function AppShell() {
           <Button
             size="sm"
             className={cn(
-              "gap-2 px-4 shadow-lg shadow-indigo-500/20 transition-all duration-200",
-              "bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-500/95 hover:to-violet-600/95",
+              "gap-2 px-4 shadow-lg shadow-blue-500/20 transition-all duration-200",
+              "bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-500/95 hover:to-indigo-600/95",
               "active:scale-[0.98] disabled:shadow-none",
             )}
             disabled={runInFlight || !nodes.length}
@@ -738,7 +687,7 @@ export function AppShell() {
                       className={cn(
                         "flex min-w-0 items-center gap-1 rounded-xl border px-1.5 py-1 transition-colors",
                         w.id === activeWorkflowId
-                          ? "border-indigo-400/45 bg-indigo-500/15 shadow-[0_0_20px_-8px_rgba(99,102,241,0.45)]"
+                          ? "border-blue-400/45 bg-blue-500/15 shadow-[0_0_20px_-8px_rgba(59,130,246,0.45)]"
                           : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07] dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
                       )}
                     >
@@ -847,7 +796,7 @@ export function AppShell() {
               <div key={cat.id} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex size-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] dark:border-white/[0.08]">
-                    <CategoryIcon className="size-3.5 text-indigo-300/90" />
+                    <CategoryIcon className="size-3.5 text-blue-300/90" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-foreground/90">
@@ -883,13 +832,13 @@ export function AppShell() {
                         }}
                         className={cn(
                           "group flex h-auto w-full max-w-full cursor-grab flex-col items-start gap-1 rounded-xl border py-2.5 pl-3 pr-2 text-left shadow-md outline-none transition-all duration-200",
-                          "border-white/12 bg-gradient-to-br from-white/[0.07] to-transparent hover:border-indigo-400/35 hover:shadow-lg hover:shadow-indigo-500/10 active:cursor-grabbing",
-                          "dark:border-white/[0.08] dark:from-white/[0.05] dark:to-transparent dark:hover:border-indigo-400/30",
-                          "focus-visible:ring-2 focus-visible:ring-indigo-400/40",
+                          "border-white/12 bg-gradient-to-br from-white/[0.07] to-transparent hover:border-blue-400/35 hover:shadow-lg hover:shadow-blue-500/10 active:cursor-grabbing",
+                          "dark:border-white/[0.08] dark:from-white/[0.05] dark:to-transparent dark:hover:border-blue-400/30",
+                          "focus-visible:ring-2 focus-visible:ring-blue-400/40",
                         )}
                       >
                         <span className="flex w-full min-w-0 items-center gap-2">
-                          <Icon className="size-4 shrink-0 text-indigo-300/80 transition-colors group-hover:text-indigo-200" />
+                          <Icon className="size-4 shrink-0 text-blue-300/80 transition-colors group-hover:text-blue-200" />
                           <span className="min-w-0 text-sm font-semibold tracking-tight break-words text-foreground">
                             {title}
                           </span>

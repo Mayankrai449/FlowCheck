@@ -36,7 +36,7 @@ export function ConditionNode({
         <div className="flex min-w-0 items-start justify-between gap-2">
           <Badge
             variant="outline"
-            className="min-w-0 shrink-0 border-violet-400/35 bg-violet-500/12 font-mono text-[10px] text-violet-950 dark:border-violet-400/45 dark:bg-violet-500/18 dark:text-violet-100"
+            className="min-w-0 shrink-0 border-blue-400/35 bg-blue-500/12 font-mono text-[10px] text-blue-950 dark:border-blue-400/45 dark:bg-blue-500/18 dark:text-blue-100"
           >
             <GitBranch className="mr-1 inline size-3" />
             IF

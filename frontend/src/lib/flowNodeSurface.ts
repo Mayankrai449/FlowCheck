@@ -30,4 +30,4 @@ export function flowNodeSurfaceClass(opts: {
 }
 
 export const flowHandleClass =
-  "!size-3 !border-2 !border-slate-800/90 !bg-gradient-to-b !from-indigo-400 !to-violet-600 !shadow-md !transition-transform hover:!scale-125 dark:!border-slate-950/90"
+  "!size-3 !border-2 !border-slate-800/90 !bg-gradient-to-b !from-blue-400 !to-indigo-600 !shadow-md !transition-transform hover:!scale-125 dark:!border-slate-950/90"

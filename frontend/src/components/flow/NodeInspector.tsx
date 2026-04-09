@@ -40,7 +40,7 @@ function nodeIcon(n: AppNode) {
     case "http":
       return <Globe className="size-4 text-sky-400" />
     case "condition":
-      return <GitBranch className="size-4 text-violet-400" />
+      return <GitBranch className="size-4 text-blue-400" />
     case "code":
       return <Braces className="size-4 text-emerald-400" />
     case "trigger":
@@ -117,12 +117,12 @@ export function NodeInspector() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-transparent to-violet-500/10 p-3 dark:border-white/[0.07]">
+      <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-blue-500/10 via-transparent to-sky-500/10 p-3 dark:border-white/[0.07]">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-card/80 shadow-sm dark:border-white/[0.08]">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300/90">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-300/90">
             Inspector
           </p>
           <p className="truncate text-sm font-semibold text-foreground">
