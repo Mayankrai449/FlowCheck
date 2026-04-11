@@ -9,6 +9,7 @@ import {
 } from "@xyflow/react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { layoutNodesWithDagre } from "@/lib/dagreLayout"
 import { buildExecutionPlan } from "@/lib/executionPlan"
 import type {
   AnyFlowNodeData,
@@ -19,6 +20,7 @@ import type {
 } from "@/types/flow"
 import {
   defaultDataForKind,
+  defaultHttpStartData,
   migrateSavedWorkflowNodes,
 } from "@/types/flow"
 import {
@@ -29,13 +31,25 @@ import {
   type StressSummary,
 } from "@/types/workflow"
 
+function defaultCanvasNodes(): AppNode[] {
+  const id = crypto.randomUUID()
+  return [
+    {
+      id,
+      type: "http",
+      position: { x: 260, y: 200 },
+      data: defaultHttpStartData(),
+    } as AppNode,
+  ]
+}
+
 function newSavedWorkflow(name: string): SavedWorkflow {
   const id = crypto.randomUUID()
   return {
     id,
     name,
     updatedAt: new Date().toISOString(),
-    nodes: [],
+    nodes: defaultCanvasNodes(),
     edges: [],
     lastRunLogs: [],
     stressHistory: [],
@@ -127,6 +141,8 @@ type PersistedV1 = {
 type WorkflowRootState = {
   workflows: Record<string, SavedWorkflow>
   activeWorkflowId: string
+  /** Open workflow tabs (IDE-style); each id must exist in `workflows`. */
+  workflowTabIds: string[]
   resultsOpen: boolean
   curlTargetNodeId: string | null
   runInFlight: boolean
@@ -174,6 +190,7 @@ type WorkflowActions = {
   clearActiveWorkflowGraph: () => void
   setWorkflowViewport: (vp: FlowViewportState) => void
   applyAutoLayout: () => { ok: true } | { ok: false; message: string }
+  closeWorkflowTab: (id: string) => void
 }
 
 function initialRoot(): WorkflowRootState {
@@ -181,6 +198,7 @@ function initialRoot(): WorkflowRootState {
   return {
     workflows: { [wf.id]: wf },
     activeWorkflowId: wf.id,
+    workflowTabIds: [wf.id],
     resultsOpen: true,
     curlTargetNodeId: null,
     runInFlight: false,
@@ -217,9 +235,13 @@ export const useWorkflowStore = create<
           name?.trim() ||
           `Workflow ${Object.keys(s.workflows).length + 1}`
         const wf = newSavedWorkflow(n)
+        const workflowTabIds = s.workflowTabIds.includes(wf.id)
+          ? s.workflowTabIds
+          : [...s.workflowTabIds, wf.id]
         set({
           workflows: { ...s.workflows, [wf.id]: wf },
           activeWorkflowId: wf.id,
+          workflowTabIds,
           curlTargetNodeId: null,
           selectedNodeId: null,
         })
@@ -228,8 +250,31 @@ export const useWorkflowStore = create<
       setActiveWorkflow: (id) => {
         const s = get()
         if (!s.workflows[id]) return
+        const workflowTabIds = s.workflowTabIds.includes(id)
+          ? s.workflowTabIds
+          : [...s.workflowTabIds, id]
         set({
           activeWorkflowId: id,
+          workflowTabIds,
+          curlTargetNodeId: null,
+          selectedNodeId: null,
+        })
+      },
+
+      closeWorkflowTab: (id) => {
+        const s = get()
+        if (s.workflowTabIds.length <= 1) return
+        if (!s.workflowTabIds.includes(id)) return
+        const idx = s.workflowTabIds.indexOf(id)
+        const nextTabs = s.workflowTabIds.filter((t) => t !== id)
+        let nextActive = s.activeWorkflowId
+        if (s.activeWorkflowId === id) {
+          const pick = nextTabs[Math.max(0, idx - 1)] ?? nextTabs[0]
+          nextActive = pick ?? nextActive
+        }
+        set({
+          workflowTabIds: nextTabs,
+          activeWorkflowId: nextActive,
           curlTargetNodeId: null,
           selectedNodeId: null,
         })
@@ -263,6 +308,7 @@ export const useWorkflowStore = create<
         set({
           workflows: { ...s.workflows, [wf.id]: wf },
           activeWorkflowId: wf.id,
+          workflowTabIds: [...s.workflowTabIds, wf.id],
           curlTargetNodeId: null,
           selectedNodeId: null,
         })
@@ -279,11 +325,16 @@ export const useWorkflowStore = create<
         }
         let nextActive = s.activeWorkflowId
         if (nextActive === id) {
-          nextActive = Object.keys(rest)[0]
+          nextActive = Object.keys(rest)[0]!
+        }
+        let nextTabs = s.workflowTabIds.filter((t) => t !== id)
+        if (nextTabs.length === 0 && Object.keys(rest).length > 0) {
+          nextTabs = [nextActive]
         }
         set({
           workflows: rest,
           activeWorkflowId: nextActive,
+          workflowTabIds: nextTabs,
           curlTargetNodeId: null,
           selectedNodeId: null,
         })
@@ -385,7 +436,7 @@ export const useWorkflowStore = create<
             ...s.workflows,
             [wf.id]: {
               ...wf,
-              nodes: [],
+              nodes: defaultCanvasNodes(),
               edges: [],
               viewport: undefined,
               lastRunLogs: [],
@@ -423,21 +474,7 @@ export const useWorkflowStore = create<
         if (!plan.ok) {
           return { ok: false, message: plan.message }
         }
-        const colW = 300
-        const rowH = 200
-        const idToPos = new Map<string, { x: number; y: number }>()
-        for (let row = 0; row < plan.batches.length; row++) {
-          const batch = plan.batches[row]!
-          const n = batch.length
-          const rowW = n > 1 ? (n - 1) * colW : 0
-          const baseX = 320 - rowW / 2
-          for (let col = 0; col < n; col++) {
-            idToPos.set(batch[col]!, {
-              x: baseX + col * colW,
-              y: 80 + row * rowH,
-            })
-          }
-        }
+        const idToPos = layoutNodesWithDagre(wf.nodes, wf.edges)
         const nextNodes = wf.nodes.map((n) => {
           const p = idToPos.get(n.id)
           return p ? { ...n, position: p } : n
@@ -801,6 +838,7 @@ export const useWorkflowStore = create<
       partialize: (s) => ({
         workflows: s.workflows,
         activeWorkflowId: s.activeWorkflowId,
+        workflowTabIds: s.workflowTabIds,
         resultsOpen: s.resultsOpen,
       }),
       merge: (persisted, current) => {
@@ -816,10 +854,24 @@ export const useWorkflowStore = create<
           for (const [k, w] of Object.entries(p.workflows)) {
             migrated[k] = migrateWorkflowRecord(w)
           }
+          const rawTabs = (p as { workflowTabIds?: unknown }).workflowTabIds
+          let workflowTabIds = Array.isArray(rawTabs)
+            ? rawTabs.filter(
+                (id): id is string => typeof id === "string" && Boolean(migrated[id]),
+              )
+            : []
+          if (workflowTabIds.length === 0) {
+            const keys = Object.keys(migrated)
+            workflowTabIds = [
+              p.activeWorkflowId,
+              ...keys.filter((k) => k !== p.activeWorkflowId),
+            ]
+          }
           return {
             ...current,
             workflows: migrated,
             activeWorkflowId: p.activeWorkflowId,
+            workflowTabIds,
             resultsOpen: p.resultsOpen ?? true,
             curlTargetNodeId: null,
             runInFlight: false,
@@ -840,6 +892,7 @@ export const useWorkflowStore = create<
             ...current,
             workflows: { [migrated.id]: migrated },
             activeWorkflowId: migrated.id,
+            workflowTabIds: [migrated.id],
             resultsOpen: p.resultsOpen ?? true,
             curlTargetNodeId: null,
             runInFlight: false,

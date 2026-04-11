@@ -1,11 +1,13 @@
 import {
   BarChart3,
+  Braces,
   ChevronDown,
   ChevronUp,
   Copy,
-  FilePlus,
+  Eraser,
   FolderOpen,
   Globe,
+  LayoutGrid,
   LayoutPanelLeft,
   Loader2,
   Moon,
@@ -19,6 +21,7 @@ import {
   Sun,
   Trash2,
   User,
+  X,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -53,15 +56,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { downloadTextFile } from "@/lib/downloadTextFile"
 import { executeFlowApi, type ExecuteFlowResult } from "@/lib/executeFlow"
 import {
@@ -92,9 +88,15 @@ const PALETTE_ITEMS: PaletteItem[] = [
     blurb: "Request via backend proxy; paste cURL on the node.",
     Icon: Globe,
   },
+  {
+    kind: "code",
+    title: "Code",
+    blurb: "Python or JavaScript with upstream ctx; set result.",
+    Icon: Braces,
+  },
 ]
 
-type PaletteCategoryId = "api"
+type PaletteCategoryId = "api" | "logic"
 
 const PALETTE_CATEGORIES: {
   id: PaletteCategoryId
@@ -110,6 +112,13 @@ const PALETTE_CATEGORIES: {
     Icon: Globe,
     kinds: ["http"],
   },
+  {
+    id: "logic",
+    label: "Code",
+    description: "Custom logic",
+    Icon: Braces,
+    kinds: ["code"],
+  },
 ]
 
 function itemForKind(kind: FlowNodeKind): PaletteItem | undefined {
@@ -120,12 +129,12 @@ function InspectorPanel({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-xl backdrop-blur-xl dark:border-white/[0.07] dark:bg-slate-950/40",
+        "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-white/80 shadow-xl shadow-slate-900/6 backdrop-blur-xl dark:border-white/[0.07] dark:bg-slate-950/40 dark:shadow-black/25",
         className,
       )}
     >
-      <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-blue-500/15 via-sky-500/5 to-transparent px-4 py-3 dark:border-white/[0.06]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-300/80">
+      <div className="shrink-0 border-b border-border/60 bg-gradient-to-r from-indigo-500/12 via-emerald-500/5 to-transparent px-4 py-3 dark:border-zinc-800">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600/90 dark:text-indigo-400/90">
           Editor
         </p>
         <p className="text-sm font-semibold tracking-tight text-foreground">
@@ -168,7 +177,13 @@ export function AppShell() {
   const clearActiveWorkflowGraph = useWorkflowStore(
     (s) => s.clearActiveWorkflowGraph,
   )
+  const workflowTabIds = useWorkflowStore((s) => s.workflowTabIds)
+  const closeWorkflowTab = useWorkflowStore((s) => s.closeWorkflowTab)
+  const applyAutoLayout = useWorkflowStore((s) => s.applyAutoLayout)
   const loadFlowInputRef = useRef<HTMLInputElement>(null)
+
+  const toolbarBtn =
+    "gap-1.5 rounded-xl border border-border/80 bg-background/85 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/75"
 
   const [stressIterations, setStressIterations] = useState(5)
   const [paletteQuery, setPaletteQuery] = useState("")
@@ -178,6 +193,7 @@ export function AppShell() {
   const [newName, setNewName] = useState("")
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameName, setRenameName] = useState("")
+  const [dashboardOpen, setDashboardOpen] = useState(false)
 
   const workflowList = useMemo(
     () =>
@@ -354,16 +370,22 @@ export function AppShell() {
     [loadFlow],
   )
 
-  const onNewFlowGraph = useCallback(() => {
+  const onAutoLayoutClick = useCallback(() => {
+    const r = applyAutoLayout()
+    if (r.ok) toast.success("Auto layout applied")
+    else toast.error(r.message)
+  }, [applyAutoLayout])
+
+  const onClearWorkflowCanvas = useCallback(() => {
     if (
       !window.confirm(
-        "Clear the current workflow canvas (nodes and edges)? Logs and stress history for this workflow will be cleared.",
+        "Clear the current workflow canvas? A fresh HTTP Start block will be added in the center. Logs and stress history for this workflow will be cleared.",
       )
     ) {
       return
     }
     clearActiveWorkflowGraph()
-    toast.success("Canvas cleared")
+    toast.success("Canvas reset with HTTP Start")
   }, [clearActiveWorkflowGraph])
 
   const openNewWorkflow = () => {
@@ -405,7 +427,7 @@ export function AppShell() {
   const bottomHeight = resultsOpen ? "min-h-[280px] max-h-[40vh]" : "min-h-0"
 
   return (
-    <div className="relative flex h-svh max-h-svh flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative flex h-svh max-h-svh flex-col overflow-hidden bg-background text-foreground transition-colors duration-300">
       <div
         className="pointer-events-none absolute inset-0 opacity-40 dark:opacity-100"
         aria-hidden
@@ -414,13 +436,13 @@ export function AppShell() {
             "radial-gradient(ellipse 80% 50% at 50% -30%, color-mix(in oklab, var(--fc-accent) 22%, transparent), transparent 55%), radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--fc-accent-muted) 12%, transparent), transparent 45%)",
         }}
       />
-      <header className="relative z-10 flex h-[3.25rem] min-w-0 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-card/70 px-3 shadow-lg backdrop-blur-2xl sm:h-14 sm:px-4 dark:border-white/[0.06] dark:bg-slate-950/55">
+      <header className="relative z-10 flex h-[3.25rem] min-w-0 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-card/90 px-2 shadow-lg shadow-black/5 backdrop-blur-2xl sm:h-14 sm:gap-3 sm:px-4 dark:border-zinc-800 dark:bg-zinc-950/80 dark:shadow-black/30">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="shrink-0 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            className={cn("shrink-0", toolbarBtn)}
             aria-expanded={sidebarOpen}
             aria-controls="app-sidebar"
             aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
@@ -430,7 +452,7 @@ export function AppShell() {
             <LayoutPanelLeft className="size-4" />
           </Button>
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-600 shadow-lg shadow-indigo-500/25">
               <Sparkles className="size-4 text-white" />
             </div>
             <div className="min-w-0 hidden sm:block">
@@ -464,7 +486,7 @@ export function AppShell() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur()
               }}
-              className="h-9 border-white/15 bg-white/[0.06] text-center text-sm font-medium shadow-inner backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+              className="h-9 border-border/80 bg-background/90 text-center text-sm font-medium shadow-inner backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/60"
               placeholder="Untitled flow"
             />
             <p className="text-center text-[10px] text-muted-foreground">
@@ -487,7 +509,19 @@ export function AppShell() {
             type="button"
             variant="outline"
             size="sm"
-            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            className={cn("font-medium", toolbarBtn)}
+            title="Arrange nodes with auto layout (DAG)"
+            disabled={!nodes.length}
+            onClick={onAutoLayoutClick}
+          >
+            <LayoutGrid className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">Auto layout</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(toolbarBtn)}
             title="Download current flow as .flow.json"
             onClick={onSaveFlowFile}
           >
@@ -498,7 +532,7 @@ export function AppShell() {
             type="button"
             variant="outline"
             size="sm"
-            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            className={cn(toolbarBtn)}
             title="Load a .flow.json file"
             onClick={onPickLoadFlow}
           >
@@ -509,47 +543,54 @@ export function AppShell() {
             type="button"
             variant="outline"
             size="sm"
-            className="gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
-            title="Clear nodes and edges on the active workflow"
-            onClick={onNewFlowGraph}
+            className={cn(toolbarBtn)}
+            title="Clear the canvas and add a fresh HTTP Start block"
+            onClick={onClearWorkflowCanvas}
           >
-            <FilePlus className="size-3.5" />
-            <span className="hidden sm:inline">New</span>
+            <Eraser className="size-3.5" />
+            <span className="hidden sm:inline">Clear canvas</span>
           </Button>
-          <Sheet>
-            <SheetTrigger
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(toolbarBtn)}
+            title="View execution dashboard"
+            onClick={() => setDashboardOpen(true)}
+          >
+            <BarChart3 className="size-3.5" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Button>
+          <Dialog open={dashboardOpen} onOpenChange={setDashboardOpen}>
+            <DialogContent
+              showCloseButton
               className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "cursor-pointer gap-1.5 border-white/15 bg-white/5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]",
+                "max-h-[min(92dvh,calc(100dvh-0.5rem))] w-[min(90vw,80rem)] max-w-[min(90vw,80rem)] gap-0 overflow-hidden rounded-3xl border border-border/50 p-0 shadow-2xl",
+                "bg-card/95 backdrop-blur-2xl dark:border-zinc-800 dark:bg-zinc-950/95",
               )}
             >
-              <BarChart3 className="size-3.5" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </SheetTrigger>
-            <SheetContent
-              side="right"
-              className="flex h-[100dvh] max-h-[100dvh] w-full max-w-full flex-col gap-0 border-l border-white/10 bg-slate-950/90 p-0 backdrop-blur-2xl sm:max-w-lg dark:border-white/[0.08]"
-            >
-              <SheetHeader className="shrink-0 space-y-1.5 border-b border-white/10 px-4 py-4 pr-14 text-left dark:border-white/[0.06]">
-                <SheetTitle className="text-lg">Performance</SheetTitle>
-                <SheetDescription className="text-pretty">
-                  Charts use data from runs and stress tests on the{" "}
-                  <strong className="font-medium text-foreground">active</strong>{" "}
-                  workflow only.
-                </SheetDescription>
-              </SheetHeader>
-              <ScrollArea className="min-h-0 w-full flex-1 [&_[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-8.5rem)]">
-                <div className="px-4 py-4">
-                  <PerformanceDashboard />
+              <div className="border-b border-border/60 bg-gradient-to-r from-indigo-500/12 via-transparent to-emerald-500/10 px-8 py-6 sm:px-10 dark:border-zinc-800">
+                <DialogHeader className="gap-1 text-left">
+                  <DialogTitle className="text-xl font-semibold tracking-tight">
+                    Execution dashboard
+                  </DialogTitle>
+                  <DialogDescription className="text-pretty text-sm">
+                    Health, timeline, and timing for the active workflow.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+              <ScrollArea className="max-h-[min(74dvh,calc(100dvh-10rem))]">
+                <div className="p-8 pb-10 sm:px-10">
+                  <PerformanceDashboard workflowTitle={activeWf?.name} />
                 </div>
               </ScrollArea>
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
           <div
-            className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-1 pr-2.5 shadow-sm backdrop-blur-md sm:flex dark:border-white/10 dark:bg-white/[0.04]"
+            className="hidden items-center gap-2 rounded-full border border-border/80 bg-background/80 py-1 pl-1 pr-2.5 shadow-sm backdrop-blur-md sm:flex dark:border-zinc-700 dark:bg-zinc-900/70"
             title="Signed in locally"
           >
-            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/90 to-indigo-600 text-[10px] font-bold text-white shadow-inner">
+            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-600 text-[10px] font-bold text-white shadow-inner">
               <User className="size-3.5 opacity-95" />
             </div>
             <span className="text-xs font-medium text-foreground/90">You</span>
@@ -558,7 +599,7 @@ export function AppShell() {
             type="button"
             variant="outline"
             size="icon-sm"
-            className="shrink-0 border-white/15 bg-white/5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]"
+            className={cn("shrink-0", toolbarBtn)}
             onClick={toggleTheme}
             aria-label={
               resolvedTheme === "dark"
@@ -581,7 +622,8 @@ export function AppShell() {
             <DropdownMenuTrigger
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
-                "cursor-pointer gap-1 border-white/15 bg-white/5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]",
+                "cursor-pointer gap-1",
+                toolbarBtn,
               )}
             >
               <span className="hidden sm:inline">Export</span>
@@ -600,8 +642,8 @@ export function AppShell() {
           <Button
             size="sm"
             className={cn(
-              "gap-2 px-4 shadow-lg shadow-blue-500/20 transition-all duration-200",
-              "bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-500/95 hover:to-indigo-600/95",
+              "gap-2 px-4 shadow-lg shadow-indigo-500/25 transition-all duration-200",
+              "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-500/95 hover:to-indigo-600/95",
               "active:scale-[0.98] disabled:shadow-none",
             )}
             disabled={runInFlight || !nodes.length}
@@ -619,7 +661,71 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="relative z-[1] border-b border-white/10 bg-card/50 px-3 py-2 backdrop-blur-md md:hidden dark:border-white/[0.06] dark:bg-slate-950/40">
+      <div
+        className="relative z-[8] flex min-h-[2.75rem] shrink-0 items-stretch gap-1 border-b border-border/60 bg-muted/25 px-1 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/40"
+        role="tablist"
+        aria-label="Workflow tabs"
+      >
+        <div className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {workflowTabIds.map((id) => {
+            const w = workflows[id]
+            if (!w) return null
+            const active = id === activeWorkflowId
+            return (
+              <div
+                key={id}
+                className={cn(
+                  "group mb-px flex min-w-0 max-w-[11rem] shrink-0 items-center rounded-t-lg border border-b-0 transition-colors",
+                  active
+                    ? "border-border/80 bg-background text-foreground shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    : "border-transparent text-muted-foreground hover:bg-background/70 hover:text-foreground dark:hover:bg-zinc-900/50",
+                )}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  id={`fc-tab-${id}`}
+                  className="min-w-0 flex-1 truncate px-3 py-2 text-left text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setActiveWorkflow(id)}
+                >
+                  {w.name}
+                </button>
+                {workflowTabIds.length > 1 ? (
+                  <button
+                    type="button"
+                    className="mr-0.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Close tab ${w.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeWorkflowTab(id)
+                    }}
+                  >
+                    <X className="size-3.5" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mb-1 shrink-0 gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground"
+          aria-label="New workflow tab"
+          title="New workflow"
+          onClick={() => {
+            createWorkflow()
+            toast.success("New workflow")
+          }}
+        >
+          <Plus className="size-3.5" />
+          <span className="hidden sm:inline">New tab</span>
+        </Button>
+      </div>
+
+      <div className="relative z-[1] border-b border-border/60 bg-card/60 px-3 py-2 backdrop-blur-md md:hidden dark:border-zinc-800 dark:bg-zinc-950/50">
         <label htmlFor="fc-flow-name-mobile" className="sr-only">
           Flow name
         </label>
@@ -655,7 +761,7 @@ export function AppShell() {
         <aside
           id="app-sidebar"
           className={cn(
-            "flex min-h-0 w-full max-w-[300px] flex-col overflow-x-hidden overflow-y-auto border-white/10 bg-sidebar/85 backdrop-blur-2xl transition-[transform,width,opacity] duration-300 ease-out dark:border-white/[0.06] dark:bg-slate-950/55",
+            "flex min-h-0 w-full max-w-[300px] flex-col overflow-x-hidden overflow-y-auto border-border/60 bg-sidebar/90 backdrop-blur-2xl transition-[transform,width,opacity] duration-300 ease-out dark:border-zinc-800 dark:bg-zinc-950/55",
             "fixed bottom-0 left-0 top-[6.25rem] z-40 border-b border-r shadow-2xl sm:top-[6.5rem] md:static md:top-auto md:z-auto md:max-w-none md:border-b-0 md:shadow-none",
             "md:w-[300px] md:max-w-[300px] md:shrink-0 md:border-r",
             sidebarOpen
@@ -687,7 +793,7 @@ export function AppShell() {
                       className={cn(
                         "flex min-w-0 items-center gap-1 rounded-xl border px-1.5 py-1 transition-colors",
                         w.id === activeWorkflowId
-                          ? "border-blue-400/45 bg-blue-500/15 shadow-[0_0_20px_-8px_rgba(59,130,246,0.45)]"
+                          ? "border-indigo-500/45 bg-indigo-500/12 shadow-[0_0_22px_-8px_rgba(99,102,241,0.45)]"
                           : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07] dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
                       )}
                     >
@@ -796,7 +902,7 @@ export function AppShell() {
               <div key={cat.id} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex size-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] dark:border-white/[0.08]">
-                    <CategoryIcon className="size-3.5 text-blue-300/90" />
+                    <CategoryIcon className="size-3.5 text-indigo-500/90 dark:text-indigo-400/90" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-foreground/90">
@@ -832,13 +938,13 @@ export function AppShell() {
                         }}
                         className={cn(
                           "group flex h-auto w-full max-w-full cursor-grab flex-col items-start gap-1 rounded-xl border py-2.5 pl-3 pr-2 text-left shadow-md outline-none transition-all duration-200",
-                          "border-white/12 bg-gradient-to-br from-white/[0.07] to-transparent hover:border-blue-400/35 hover:shadow-lg hover:shadow-blue-500/10 active:cursor-grabbing",
-                          "dark:border-white/[0.08] dark:from-white/[0.05] dark:to-transparent dark:hover:border-blue-400/30",
-                          "focus-visible:ring-2 focus-visible:ring-blue-400/40",
+                          "border-border/80 bg-gradient-to-br from-white/[0.08] to-transparent hover:border-indigo-400/35 hover:shadow-lg hover:shadow-indigo-500/10 active:cursor-grabbing",
+                          "dark:border-zinc-800 dark:from-white/[0.05] dark:to-transparent dark:hover:border-indigo-400/30",
+                          "focus-visible:ring-2 focus-visible:ring-indigo-400/40",
                         )}
                       >
                         <span className="flex w-full min-w-0 items-center gap-2">
-                          <Icon className="size-4 shrink-0 text-blue-300/80 transition-colors group-hover:text-blue-200" />
+                          <Icon className="size-4 shrink-0 text-indigo-500/80 transition-colors group-hover:text-indigo-400 dark:text-indigo-400/80 dark:group-hover:text-indigo-300" />
                           <span className="min-w-0 text-sm font-semibold tracking-tight break-words text-foreground">
                             {title}
                           </span>
@@ -868,7 +974,7 @@ export function AppShell() {
 
             <div
               className={cn(
-                "mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-card/45 shadow-xl backdrop-blur-xl transition-all dark:border-white/[0.06] dark:bg-slate-950/40",
+                "mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xl backdrop-blur-xl transition-all dark:border-zinc-800 dark:bg-zinc-950/40",
                 bottomHeight,
               )}
             >
@@ -900,7 +1006,17 @@ export function AppShell() {
                 <Separator />
                 <ScrollArea className="h-full min-h-[200px] min-w-0 flex-1 px-2">
                   <ul className="min-w-0 space-y-2 py-3 pr-2">
-                    {lastRunLogs.length === 0 ? (
+                    {runInFlight ? (
+                      <li className="list-none space-y-3 px-2 py-1" aria-busy>
+                        <p className="sr-only">Loading run results</p>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Skeleton
+                            key={i}
+                            className="h-16 w-full rounded-xl"
+                          />
+                        ))}
+                      </li>
+                    ) : lastRunLogs.length === 0 ? (
                       <li className="px-2 py-1 text-sm text-muted-foreground">
                         No results yet. They appear here after a successful run
                         or stress test.

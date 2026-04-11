@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class RetryConfigData(BaseModel):
@@ -40,6 +40,10 @@ class CodeNodeData(BaseModel):
 
     code: str = ""
     timeout_s: float = Field(default=5.0, ge=0.5, le=30.0)
+    code_language: Literal["python", "javascript"] = Field(
+        default="python",
+        validation_alias=AliasChoices("code_language", "codeLanguage"),
+    )
     retry_config: RetryConfigData | None = None
     continue_on_fail: bool = False
 

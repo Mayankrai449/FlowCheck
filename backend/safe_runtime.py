@@ -252,6 +252,46 @@ def validate_user_code(source: str) -> ast.Module:
     return mod
 
 
+_MAX_JS_LEN = 200_000
+
+
+def run_user_javascript(source: str, ctx: dict[str, Any]) -> Any:
+    """
+    Run user JS in an embedded V8 (PyMiniRacer). User code shares `ctx` and
+    assigns to `result`. Output is JSON-serialized in JS then parsed in Python
+    so objects become native dict/list types.
+    """
+    if len(source or "") > _MAX_JS_LEN:
+        raise UnsafeExpressionError("Code is too long")
+    try:
+        from py_mini_racer import MiniRacer
+    except ImportError as e:
+        raise UnsafeExpressionError(
+            "JavaScript requires py-mini-racer. Install: pip install py-mini-racer",
+        ) from e
+
+    import json
+
+    ctx_json = json.dumps(ctx, default=str)
+    mr = MiniRacer()
+    mr.eval(f"var __fcCtx = {ctx_json};")
+    wrapped = (
+        "(function(){ var ctx = __fcCtx; var result = undefined;\n"
+        + (source or "")
+        + "\ntry { return JSON.stringify(result === undefined ? null : result); }"
+        + "\ncatch (e) { throw e; } })()"
+    )
+    raw = mr.eval(wrapped)
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raw = str(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
+
+
 def run_user_code(source: str, ctx: dict[str, Any]) -> Any:
     validate_user_code(source)
     safe_builtins: dict[str, Any] = {

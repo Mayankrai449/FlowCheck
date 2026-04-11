@@ -27,6 +27,12 @@ type BaseFlowNodeData = {
   lastOutcome?: ExecutionOutcome
   retryConfig?: NodeRetryConfig
   continueOnFail?: boolean
+  /**
+   * When true (default), the node may run in parallel with other async-ready
+   * peers in the same wave. When false, it runs alone after prior groups in
+   * that wave complete.
+   */
+  executeAsync?: boolean
 }
 
 /** `url`, `headers` values, and `body` may include `{{ $node["id"].data.key }}` templates. */
@@ -39,6 +45,8 @@ export type HttpNodeData = BaseFlowNodeData & {
 
 export type ConditionEvalMode = "safe_expr" | "python_sandbox"
 
+export type CodeLanguage = "python" | "javascript"
+
 export type ConditionNodeData = BaseFlowNodeData & {
   expression: string
   evalMode: ConditionEvalMode
@@ -47,6 +55,8 @@ export type ConditionNodeData = BaseFlowNodeData & {
 export type CodeNodeData = BaseFlowNodeData & {
   code: string
   timeoutS: number
+  /** Runtime: Python (restricted exec) or JavaScript (V8 via PyMiniRacer). */
+  codeLanguage: CodeLanguage
 }
 
 export type TriggerNodeData = BaseFlowNodeData & {
@@ -95,6 +105,17 @@ export function defaultHttpData(): HttpNodeData {
     headers: {},
     body: null,
     runStatus: "idle",
+    executeAsync: true,
+  }
+}
+
+/** Centered starter block for empty / cleared workflows. */
+export function defaultHttpStartData(): HttpNodeData {
+  return {
+    ...defaultHttpData(),
+    label: "HTTP Start",
+    url: "https://example.com/api",
+    executeAsync: true,
   }
 }
 
@@ -104,6 +125,7 @@ export function defaultConditionData(): ConditionNodeData {
     expression: "True",
     evalMode: "safe_expr",
     runStatus: "idle",
+    executeAsync: true,
   }
 }
 
@@ -113,6 +135,8 @@ export function defaultCodeData(): CodeNodeData {
     code: 'result = {"ok": True}',
     timeoutS: 5,
     runStatus: "idle",
+    executeAsync: true,
+    codeLanguage: "python",
   }
 }
 
@@ -121,6 +145,7 @@ export function defaultTriggerData(): TriggerNodeData {
     label: "Trigger",
     note: "",
     runStatus: "idle",
+    executeAsync: true,
   }
 }
 
@@ -178,6 +203,15 @@ export function migrateRetryFields(data: Record<string, unknown>): Pick<
   if (cf === true) out.continueOnFail = true
   if (cf === false) out.continueOnFail = false
   return out
+}
+
+export function migrateExecuteAsync(
+  data: Record<string, unknown>,
+): Pick<BaseFlowNodeData, "executeAsync"> {
+  const v = data.executeAsync ?? data.execute_async
+  if (v === false) return { executeAsync: false }
+  if (v === true) return { executeAsync: true }
+  return {}
 }
 
 /**
@@ -241,6 +275,7 @@ export function migrateAppNode(raw: unknown): AppNode {
         lastError:
           typeof data.lastError === "string" ? data.lastError : undefined,
         ...migrateRetryFields(data),
+        ...migrateExecuteAsync(data),
       },
     }
   }
@@ -284,11 +319,15 @@ export function migrateAppNode(raw: unknown): AppNode {
         lastError:
           typeof data.lastError === "string" ? data.lastError : undefined,
         ...migrateRetryFields(data),
+        ...migrateExecuteAsync(data),
       },
     }
   }
 
   if (kind === "code") {
+    const langRaw = data.codeLanguage ?? data.code_language
+    const codeLanguage: CodeLanguage =
+      langRaw === "javascript" || langRaw === "js" ? "javascript" : "python"
     return {
       id,
       type: "code",
@@ -297,6 +336,7 @@ export function migrateAppNode(raw: unknown): AppNode {
         ...defaultCodeData(),
         label: typeof data.label === "string" ? data.label : defaultCodeData().label,
         code: typeof data.code === "string" ? data.code : defaultCodeData().code,
+        codeLanguage,
         timeoutS: (() => {
           const ts = data.timeoutS ?? data.timeout_s
           return typeof ts === "number" && Number.isFinite(ts)
@@ -325,6 +365,7 @@ export function migrateAppNode(raw: unknown): AppNode {
         lastError:
           typeof data.lastError === "string" ? data.lastError : undefined,
         ...migrateRetryFields(data),
+        ...migrateExecuteAsync(data),
       },
     }
   }
@@ -361,6 +402,7 @@ export function migrateAppNode(raw: unknown): AppNode {
         lastError:
           typeof data.lastError === "string" ? data.lastError : undefined,
         ...migrateRetryFields(data),
+        ...migrateExecuteAsync(data),
       },
     }
   }

@@ -15,13 +15,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react"
-import { toast } from "sonner"
-import {
-  LayoutGrid,
-  Maximize2,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react"
+import { Maximize2, ZoomIn, ZoomOut } from "lucide-react"
 import { CodeNode } from "@/components/flow/CodeNode"
 import { ConditionNode } from "@/components/flow/ConditionNode"
 import { DeletableEdge } from "@/components/flow/DeletableEdge"
@@ -55,7 +49,6 @@ function FlowCanvasInner() {
   const flowLoadNonce = useWorkflowStore((s) => s.flowLoadNonce)
   const runInFlight = useWorkflowStore((s) => s.runInFlight)
   const setWorkflowViewport = useWorkflowStore((s) => s.setWorkflowViewport)
-  const applyAutoLayout = useWorkflowStore((s) => s.applyAutoLayout)
   const nodes = useWorkflowStore((s) => selectActiveWorkflow(s)?.nodes ?? [])
   const edges = useWorkflowStore((s) => selectActiveWorkflow(s)?.edges ?? [])
   const onNodesChange = useWorkflowStore((s) => s.onNodesChange)
@@ -171,15 +164,6 @@ function FlowCanvasInner() {
     [theme],
   )
 
-  const onAutoLayout = useCallback(() => {
-    const r = applyAutoLayout()
-    if (r.ok) {
-      toast.success("Layout arranged by execution waves")
-    } else {
-      toast.error(r.message)
-    }
-  }, [applyAutoLayout])
-
   return (
     <div
       className="h-full min-h-[420px] w-full min-w-0"
@@ -205,6 +189,9 @@ function FlowCanvasInner() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.08}
         maxZoom={1.85}
+        nodeDragThreshold={2}
+        elevateNodesOnSelect={false}
+        onlyRenderVisibleElements
         className={cn(
           "h-full min-h-0 w-full min-w-0 bg-transparent",
           resolvedTheme === "dark" && "dark",
@@ -228,8 +215,7 @@ function FlowCanvasInner() {
           <div
             className={cn(
               "flex flex-col gap-0.5 rounded-xl border p-1 shadow-xl",
-              "border-white/10 bg-slate-950/55 backdrop-blur-xl",
-              "dark:border-white/[0.08] dark:bg-slate-950/50",
+              "border-border/80 bg-card/90 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/80",
             )}
           >
             <Button
@@ -262,16 +248,6 @@ function FlowCanvasInner() {
             >
               <Maximize2 className="size-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="size-8 rounded-lg text-foreground/90 hover:bg-white/10"
-              title="Auto-layout by execution order"
-              onClick={onAutoLayout}
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
           </div>
         </Panel>
         <MiniMap
@@ -303,7 +279,7 @@ export function FlowCanvas() {
       <div
         className={cn(
           "fc-flow-canvas-host relative h-full min-h-0 w-full min-w-0 overflow-hidden rounded-2xl border shadow-inner",
-          "border-white/10 bg-background/80 backdrop-blur-sm dark:border-white/[0.07]",
+          "border-border/70 bg-background/90 backdrop-blur-sm dark:border-white/[0.07] dark:bg-background/80",
         )}
       >
         <div

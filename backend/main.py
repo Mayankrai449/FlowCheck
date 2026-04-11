@@ -19,6 +19,7 @@ from safe_runtime import (
     UnsafeExpressionError,
     eval_condition_expression,
     run_user_code,
+    run_user_javascript,
     validate_user_code,
 )
 from schemas import (
@@ -233,6 +234,8 @@ async def _run_code(node_id: str, node: CodeFlowNode, ctx: dict[str, Any]) -> tu
     timeout = min(30.0, max(0.5, node.data.timeout_s))
 
     def _sync() -> Any:
+        if node.data.code_language == "javascript":
+            return run_user_javascript(node.data.code, ctx)
         return run_user_code(node.data.code, ctx)
 
     try:

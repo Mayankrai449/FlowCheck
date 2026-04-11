@@ -16,18 +16,18 @@ export function flowNodeSurfaceClass(opts: {
   return cn(
     `${w} min-w-0 overflow-hidden rounded-xl border ${maxW}`,
     "border-white/10 bg-gradient-to-b from-card/95 to-card/85 shadow-lg backdrop-blur-md",
-    "transition-all duration-300 ease-out",
+    "transition-[box-shadow,border-color,filter] duration-200 ease-out",
     "hover:border-white/[0.16] hover:shadow-2xl dark:from-slate-900/92 dark:to-slate-950/88",
     opts.selected &&
-      "border-indigo-400/45 ring-2 ring-indigo-400/25 shadow-[0_0_32px_-8px_rgba(99,102,241,0.48)]",
+      "border-indigo-500/50 ring-2 ring-indigo-500/30 shadow-[0_0_36px_-8px_rgba(99,102,241,0.55)]",
     opts.runStatus === "success" &&
-      "border-emerald-500/40 shadow-[0_8px_30px_-10px_rgba(16,185,129,0.25)]",
+      "border-emerald-500/45 shadow-[0_8px_32px_-10px_rgba(16,185,129,0.28)]",
     opts.runStatus === "fail" &&
-      "border-red-500/45 shadow-[0_8px_30px_-10px_rgba(239,68,68,0.22)]",
+      "border-rose-500/50 shadow-[0_8px_32px_-10px_rgba(244,63,94,0.22)]",
     opts.runStatus === "running" &&
       "animate-[fc-node-running_2s_ease-in-out_infinite] border-indigo-400/35",
   )
 }
 
 export const flowHandleClass =
-  "!size-3 !border-2 !border-slate-800/90 !bg-gradient-to-b !from-blue-400 !to-indigo-600 !shadow-md !transition-transform hover:!scale-125 dark:!border-slate-950/90"
+  "!size-3 !border-2 !border-slate-800/90 !bg-gradient-to-b !from-indigo-400 !to-emerald-600 !shadow-md !transition-transform hover:!scale-125 dark:!border-zinc-950/90"

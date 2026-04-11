@@ -30,6 +30,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/**
+ * Within one topological wave, consecutive async nodes run together via
+ * Promise.all; each sync node runs alone after prior groups finish.
+ */
+function splitWaveIntoExecutionGroups(waveNodes: AppNode[]): AppNode[][] {
+  const sorted = [...waveNodes].sort((a, b) => a.id.localeCompare(b.id))
+  const groups: AppNode[][] = []
+  let currentAsync: AppNode[] = []
+  for (const n of sorted) {
+    const isAsync = n.data.executeAsync !== false
+    if (isAsync) {
+      currentAsync.push(n)
+    } else {
+      if (currentAsync.length) {
+        groups.push(currentAsync)
+        currentAsync = []
+      }
+      groups.push([n])
+    }
+  }
+  if (currentAsync.length) groups.push(currentAsync)
+  return groups
+}
+
 function isAttemptFailure(r: ExecuteFlowResult): boolean {
   return (
     Boolean(r.error) || (r.statusCode !== null && r.statusCode >= 400)
@@ -181,6 +205,7 @@ function serializeResolvedNode(
       const dataOut: Record<string, unknown> = {
         code: resolveTemplate(n.data.code, ctx),
         timeout_s: n.data.timeoutS,
+        code_language: n.data.codeLanguage,
       }
       attachRetryToSerializedData(dataOut, n)
       return { id: n.id, type: "code", data: dataOut }
@@ -314,14 +339,26 @@ export async function executeFlowApi(
 
   for (const batch of plan.batches) {
     const waveNodes = batch.map((id) => nodeMap.get(id)!)
-    const waveResults = await Promise.all(
-      waveNodes.map((n) => runNodeWithRetries(n, flowCtx, waveUrl)),
-    )
+    const groups = splitWaveIntoExecutionGroups(waveNodes)
+    const wavePairs: { r: ExecuteFlowResult; n: AppNode }[] = []
+
+    for (const group of groups) {
+      if (group.length === 1) {
+        const n = group[0]!
+        const r = await runNodeWithRetries(n, flowCtx, waveUrl)
+        wavePairs.push({ r, n })
+      } else {
+        const rs = await Promise.all(
+          group.map((n) => runNodeWithRetries(n, flowCtx, waveUrl)),
+        )
+        for (let i = 0; i < group.length; i++) {
+          wavePairs.push({ r: rs[i]!, n: group[i]! })
+        }
+      }
+    }
 
     let abortRest = false
-    for (let i = 0; i < waveResults.length; i++) {
-      const r = waveResults[i]!
-      const n = waveNodes[i]!
+    for (const { r, n } of wavePairs) {
       allResults.push(r)
       flowCtx[r.nodeId] = {
         data: serverPayloadFromResult(r, n),

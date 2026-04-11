@@ -380,23 +380,6 @@ export function NodeInspector() {
             </div>
           </InspectorSection>
 
-          <InspectorSection title="Advanced">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              After upstream blocks run, inject outputs with templates such as{" "}
-              <span className="break-all font-mono text-[10px] text-indigo-200/90">
-                {`{{ $node["PASTE_NODE_ID"].data.response_preview }}`}
-              </span>{" "}
-              (also{" "}
-              <span className="font-mono text-[10px] text-indigo-200/90">
-                status_code
-              </span>
-              ,{" "}
-              <span className="font-mono text-[10px] text-indigo-200/90">
-                statusCode
-              </span>
-              ).
-            </p>
-          </InspectorSection>
         </>
       ) : null}
 
@@ -439,8 +422,26 @@ export function NodeInspector() {
       {node.type === "code" ? (
         <InspectorSection title="Code" defaultOpen>
           <div className="space-y-1.5">
+            <label htmlFor="fc-code-lang" className={fieldLabel}>
+              Language
+            </label>
+            <select
+              id="fc-code-lang"
+              className={selectSurface}
+              value={node.data.codeLanguage}
+              onChange={(e) =>
+                updateNodeData(node.id, {
+                  codeLanguage: e.target.value as typeof node.data.codeLanguage,
+                })
+              }
+            >
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+            </select>
             <label htmlFor="fc-code" className={fieldLabel}>
-              Python
+              {node.data.codeLanguage === "javascript"
+                ? "JavaScript"
+                : "Python"}
             </label>
             <Textarea
               id="fc-code"
@@ -450,13 +451,28 @@ export function NodeInspector() {
               }
               className={cn("min-h-[160px] font-mono text-xs", controlSurface)}
               spellCheck={false}
-              placeholder='result = {"echo": len(str(ctx))}'
+              placeholder={
+                node.data.codeLanguage === "javascript"
+                  ? "result = { ok: true, n: Object.keys(ctx).length };"
+                  : 'result = {"echo": len(str(ctx))}'
+              }
             />
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Runs with restricted builtins. Read{" "}
-              <span className="font-mono text-[10px]">ctx</span>, write{" "}
-              <span className="font-mono text-[10px]">result</span> for the
-              response preview.
+              {node.data.codeLanguage === "javascript" ? (
+                <>
+                  Read <span className="font-mono text-[10px]">ctx</span>{" "}
+                  (object). Assign{" "}
+                  <span className="font-mono text-[10px]">result</span> — it is
+                  returned as the node output.
+                </>
+              ) : (
+                <>
+                  Runs with restricted builtins. Read{" "}
+                  <span className="font-mono text-[10px]">ctx</span>, write{" "}
+                  <span className="font-mono text-[10px]">result</span> for the
+                  response preview.
+                </>
+              )}
             </p>
           </div>
         </InspectorSection>
@@ -480,6 +496,46 @@ export function NodeInspector() {
           </div>
         </InspectorSection>
       ) : null}
+
+      <InspectorSection title="Advanced settings">
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 rounded border-white/20 bg-white/5 accent-indigo-500 dark:border-white/25"
+              checked={node.data.executeAsync !== false}
+              onChange={(e) =>
+                updateNodeData(node.id, { executeAsync: e.target.checked })
+              }
+            />
+            Execute asynchronously
+          </label>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            When enabled, this block may run in parallel with other independent
+            blocks in the same execution step. When disabled, it runs alone after
+            prior groups in that step complete.
+          </p>
+        </div>
+        {node.type === "http" ? (
+          <div className="mt-3 border-t border-white/10 pt-3 dark:border-white/[0.06]">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              After upstream blocks run, inject outputs with templates such as{" "}
+              <span className="break-all font-mono text-[10px] text-indigo-600 dark:text-indigo-200/90">
+                {`{{ $node["PASTE_NODE_ID"].data.response_preview }}`}
+              </span>{" "}
+              (also{" "}
+              <span className="font-mono text-[10px] text-indigo-600 dark:text-indigo-200/90">
+                status_code
+              </span>
+              ,{" "}
+              <span className="font-mono text-[10px] text-indigo-600 dark:text-indigo-200/90">
+                statusCode
+              </span>
+              ).
+            </p>
+          </div>
+        ) : null}
+      </InspectorSection>
     </div>
   )
 }

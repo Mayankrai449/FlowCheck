@@ -35,10 +35,10 @@ export function CodeNode({
         <div className="flex min-w-0 items-start justify-between gap-2">
           <Badge
             variant="outline"
-            className="min-w-0 shrink-0 border-emerald-400/35 bg-emerald-500/12 font-mono text-[10px] text-emerald-950 dark:border-emerald-400/45 dark:bg-emerald-500/18 dark:text-emerald-100"
+            className="min-w-0 shrink-0 border-indigo-400/35 bg-indigo-500/10 font-mono text-[10px] text-indigo-950 dark:border-indigo-400/40 dark:bg-indigo-500/15 dark:text-indigo-100"
           >
             <Braces className="mr-1 inline size-3" />
-            CODE
+            {data.codeLanguage === "javascript" ? "JS" : "PY"}
           </Badge>
           <div className="flex min-w-0 shrink items-center justify-end gap-1">
             <span
@@ -66,7 +66,8 @@ export function CodeNode({
           </div>
         </div>
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Python · timeout {data.timeoutS}s
+          {data.codeLanguage === "javascript" ? "JavaScript" : "Python"} ·{" "}
+          {data.timeoutS}s
         </p>
         <p
           className="min-w-0 break-all font-mono text-xs leading-snug text-foreground [overflow-wrap:anywhere]"
