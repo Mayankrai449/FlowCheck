@@ -166,7 +166,7 @@ function FlowCanvasInner() {
 
   return (
     <div
-      className="h-full min-h-[420px] w-full min-w-0"
+      className="relative h-full w-full min-w-0 min-h-0 overflow-hidden"
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
