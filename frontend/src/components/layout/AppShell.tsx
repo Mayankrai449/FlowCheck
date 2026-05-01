@@ -565,13 +565,13 @@ export function AppShell() {
             <DialogContent
               showCloseButton
               className={cn(
-                "max-h-[min(92dvh,calc(100dvh-0.5rem))] w-[min(90vw,80rem)] max-w-[min(90vw,80rem)] gap-0 overflow-hidden rounded-3xl border border-border/50 p-0 shadow-2xl",
+                "max-h-[min(94dvh,calc(100dvh-1rem))] w-[min(96vw,80rem)] max-w-[min(96vw,80rem)] sm:max-w-[min(96vw,80rem)] gap-0 overflow-hidden rounded-3xl border border-border/50 p-0 shadow-2xl",
                 "bg-card/95 backdrop-blur-2xl dark:border-zinc-800 dark:bg-zinc-950/95",
               )}
             >
-              <div className="border-b border-border/60 bg-gradient-to-r from-indigo-500/12 via-transparent to-emerald-500/10 px-8 py-6 sm:px-10 dark:border-zinc-800">
+              <div className="shrink-0 border-b border-border/60 bg-gradient-to-r from-indigo-500/12 via-transparent to-emerald-500/10 px-6 py-5 sm:px-10 sm:py-6 dark:border-zinc-800">
                 <DialogHeader className="gap-1 text-left">
-                  <DialogTitle className="text-xl font-semibold tracking-tight">
+                  <DialogTitle className="text-lg font-semibold tracking-tight sm:text-xl">
                     Execution dashboard
                   </DialogTitle>
                   <DialogDescription className="text-pretty text-sm">
@@ -579,8 +579,8 @@ export function AppShell() {
                   </DialogDescription>
                 </DialogHeader>
               </div>
-              <ScrollArea className="max-h-[min(74dvh,calc(100dvh-10rem))]">
-                <div className="p-8 pb-10 sm:px-10">
+              <ScrollArea className="max-h-[min(80dvh,calc(100dvh-8rem))]">
+                <div className="p-6 pb-10 sm:p-8 sm:pb-12 lg:p-10 lg:pb-14">
                   <PerformanceDashboard workflowTitle={activeWf?.name} />
                 </div>
               </ScrollArea>
@@ -963,8 +963,8 @@ export function AppShell() {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 p-2 sm:p-3 md:min-w-0">
-            <div className="min-h-0 flex-1">
+          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-0 p-2 sm:p-3 md:min-w-0">
+            <div className="relative min-h-0 flex-1 overflow-hidden">
               <FlowCanvas />
             </div>
 
@@ -974,7 +974,7 @@ export function AppShell() {
 
             <div
               className={cn(
-                "mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 shadow-xl backdrop-blur-xl transition-all dark:border-zinc-800 dark:bg-zinc-950/40",
+                "relative z-[5] mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-xl backdrop-blur-xl transition-all dark:border-zinc-800 dark:bg-zinc-950/60",
                 bottomHeight,
               )}
             >

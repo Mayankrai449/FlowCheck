@@ -40,7 +40,7 @@ export function DeletableEdge({
     [id, onEdgesChange],
   )
 
-  const showButton = hovered || selected
+  const visible = hovered || selected
 
   return (
     <>
@@ -60,25 +60,27 @@ export function DeletableEdge({
         style={style}
         markerEnd={markerEnd}
       />
-      {showButton && (
-        <EdgeLabelRenderer>
-          <button
-            type="button"
-            className="fc-edge-delete-btn"
-            style={{
-              position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              pointerEvents: "all",
-            }}
-            onClick={onDelete}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            title="Delete connection"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </EdgeLabelRenderer>
-      )}
+      <EdgeLabelRenderer>
+        <button
+          type="button"
+          className="fc-edge-delete-btn"
+          style={{
+            position: "absolute",
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: visible ? "all" : "none",
+            opacity: visible ? 1 : 0,
+            transition: "opacity 0.2s ease",
+          }}
+          onClick={onDelete}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          title="Delete connection"
+          aria-hidden={!visible}
+          tabIndex={visible ? 0 : -1}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      </EdgeLabelRenderer>
     </>
   )
 }

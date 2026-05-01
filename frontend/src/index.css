@@ -236,24 +236,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   border: 1.5px solid oklch(0.65 0.2 25 / 60%);
   background: oklch(0.25 0.02 25 / 92%);
   color: oklch(0.78 0.16 25);
   cursor: pointer;
-  transition: all 0.18s ease;
-  box-shadow: 0 2px 8px oklch(0 0 0 / 40%);
   z-index: 10;
   backdrop-filter: blur(8px);
+  will-change: opacity, background-color, border-color, box-shadow;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px oklch(0 0 0 / 40%);
 }
 .fc-edge-delete-btn:hover {
   background: oklch(0.35 0.12 25 / 95%);
   color: oklch(0.9 0.14 25);
   border-color: oklch(0.7 0.2 25 / 80%);
-  box-shadow: 0 2px 12px oklch(0.55 0.2 25 / 35%);
-  transform: translate(-50%, -50%) scale(1.12);
+  box-shadow: 0 4px 16px oklch(0.55 0.2 25 / 40%);
+}
+.fc-edge-delete-btn:active {
+  transition-duration: 0.05s;
 }
 
 :root .fc-edge-delete-btn {
@@ -266,5 +269,8 @@
   background: oklch(0.92 0.04 25 / 98%);
   color: oklch(0.5 0.22 25);
   border-color: oklch(0.6 0.2 25 / 70%);
-  box-shadow: 0 2px 12px oklch(0.55 0.18 25 / 22%);
+  box-shadow: 0 3px 14px oklch(0.55 0.18 25 / 25%);
+}
+:root .fc-edge-delete-btn:active {
+  background: oklch(0.88 0.06 25 / 98%);
 }
